@@ -2,7 +2,6 @@ import numpy
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import openpyxl
 sns.set()
 
 def get_bar_graph_of_total_enrollment_by_total_year(classes_data): # all good
@@ -35,15 +34,21 @@ def find_parts_of_term_distribution(classes_data):
     finding how many students participate in each term of the semester between
     the full term, reg 1st 7 or 8 Weeks, and reg 2nd 7 or 8 Weeks
     """
-    part_of_term_distribution = classes_data.groupby(['Academic Year', 'Academic Term', 'REG Part of Term'])["GS Student ID"].nunique() # stopped working on this because there's no spring full term data?
-    print(part_of_term_distribution.index)
-    plt.barh(part_of_term_distribution.unstack().index, part_of_term_distribution)
+
+    test = classes_data.loc[ (classes_data["REG Part of Term"] == "Full Term" ) | (classes_data["REG Part of Term"] == "Reg 1st 7 or 8 Weeks") | (classes_data["REG Part of Term"] == "Reg 2nd 7 or 8 Weeks") ]
+    # test.groupby(['Academic Year', 'Academic Term', "REG Part of Term"])["GS Student ID"].nunique().plot(kind='bar') # stopped working on this because there's no spring full term data?
+    #
+    # plt.show()
+    #plt.barh(part_of_term_distribution.unstack().columns, 10)
 
 
     with sns.axes_style('white'):
-        g = sns.catplot(x=part_of_term_distribution.unstack().index, y= part_of_term_distribution)
+        g = sns.catplot(test, x = "Academic Year", aspect=4.0, kind='count',
+                           hue='REG Part of Term')
 
     plt.show()
+
+
 
 def describe_data():
     print("""Academic Term: Spring, Fall, or Summer
@@ -101,20 +106,63 @@ def get_graph_of_fall_enrollment_through_years(classes_data): # all good
             ["CRS Section Number", "GS Student ID"]].nunique()
         test.to_excel("test.xlsx")
 
-def export_all_classes_enrollemnts_and_sections_to_xlsx(classes_data): # all good
+def export_all_classes_enrollments_and_sections_to_xlsx(classes_data): # all good
 
-    enrollment_and_sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
-                                                                    "Academic Term"])[["CRS Section Number", "GS Student ID"]].nunique()
-    enrollment_and_sections_counts_by_class.to_excel("Course Statistics.xlsx")
+    sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
+                                                                    "Academic Term"])[["CRS Section Number"]].nunique()
+
+    enrollment_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
+                                                                    "Academic Term"])[["CRS Section Number"]].count()
+
+    sections_counts_by_class["Number Enrolled"] = enrollment_counts_by_class # adding enrollment by course
+
+    sections_counts_by_class.to_excel("Course Statistics.xlsx")
+
+def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
+    class_df = classes_data.loc[ (classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class) ]
+
+    sections_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
+                                                     "Academic Term"])[["CRS Section Number"]].nunique()
+
+
+    graph = sns.catplot(sections_counts_by_class, x="Academic Year", y=sections_counts_by_class.values.flatten(), aspect=4.0, kind="bar",
+                        hue='Academic Term')
+
+    graph.fig.subplots_adjust(top=.94)
+
+    graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Section Frequency by Year and Term")
+    plt.show()
+
+def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
+    class_df = classes_data.loc[ (classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class) ]
+
+    enrollment_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
+                                                       "Academic Term"])[["CRS Section Number"]].count()
+
+    print(enrollment_counts_by_class)
+
+    graph = sns.catplot(enrollment_counts_by_class, x="Academic Year", y=enrollment_counts_by_class.values.flatten(), aspect=4.0, kind="bar",
+                        hue='Academic Term')
+
+    graph.fig.subplots_adjust(top=.94)
+
+    graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Enrollment by Year and Term")
+    plt.show()
+
+
 
 def main():
-    classes_data = pd.read_csv("Course Dataset for Summer Program.csv")
+    #classes_data = pd.read_excel("Course Dataset for Summer Program NEW.xlsx")
+    classes_data = pd.read_pickle("class_data.pickle", compression="xz")
 
-    print(classes_data[classes_data["CRS Course Number"] == "1105"].to_string()) # only 12 rows?
 
-    #find_parts_of_term_distribution(classes_data)
-    #find_meeting_time_popularity(classes_data)
-    export_all_classes_enrollemnts_and_sections_to_xlsx(classes_data)
+    #classes_data.to_pickle("class_data.pickle", compression="xz")
+
+
+    #export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
+
+    plot_a_class_enrollment(classes_data, "MATH", "2501")
+    plot_a_class_section_frequency(classes_data, "MATH", "2501")
 
 if __name__ == "__main__":
     main()
