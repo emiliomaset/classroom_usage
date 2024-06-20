@@ -111,6 +111,8 @@ def export_all_classes_enrollments_and_sections_to_xlsx(classes_data): # all goo
     sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].nunique()
 
+    print(type(sections_counts_by_class))
+
     enrollment_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].count()
 
@@ -119,7 +121,7 @@ def export_all_classes_enrollments_and_sections_to_xlsx(classes_data): # all goo
     sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
-    class_df = classes_data.loc[ (classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class) ]
+    class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
 
     sections_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                      "Academic Term"])[["CRS Section Number"]].nunique()
@@ -134,12 +136,10 @@ def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Cours
     plt.show()
 
 def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
-    class_df = classes_data.loc[ (classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class) ]
+    class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
 
     enrollment_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                        "Academic Term"])[["CRS Section Number"]].count()
-
-    print(enrollment_counts_by_class)
 
     graph = sns.catplot(enrollment_counts_by_class, x="Academic Year", y=enrollment_counts_by_class.values.flatten(), aspect=4.0, kind="bar",
                         hue='Academic Term')
@@ -149,10 +149,8 @@ def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Numbe
     graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Enrollment by Year and Term")
     plt.show()
 
-
-
 def main():
-    #classes_data = pd.read_excel("Course Dataset for Summer Program NEW.xlsx")
+    #classes_data = pd.read_excel("Course Dataset for Summer Program June20.xlsx")
     classes_data = pd.read_pickle("class_data.pickle", compression="xz")
 
 
@@ -161,8 +159,11 @@ def main():
 
     #export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
 
-    plot_a_class_enrollment(classes_data, "MATH", "2501")
-    plot_a_class_section_frequency(classes_data, "MATH", "2501")
+
+
+
+    plot_a_class_enrollment(classes_data, "ENGL", "1101")
+    plot_a_class_section_frequency(classes_data, "ENGL", "1101")
 
 if __name__ == "__main__":
     main()
