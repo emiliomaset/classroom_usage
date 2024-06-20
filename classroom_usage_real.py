@@ -159,8 +159,7 @@ def main():
 
     #export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
 
-
-
+    print("test")
 
     plot_a_class_enrollment(classes_data, "ENGL", "1101")
     plot_a_class_section_frequency(classes_data, "ENGL", "1101")
