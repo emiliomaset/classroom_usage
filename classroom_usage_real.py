@@ -111,14 +111,26 @@ def export_all_classes_enrollments_and_sections_to_xlsx(classes_data): # all goo
     sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].nunique()
 
-    print(type(sections_counts_by_class))
 
     enrollment_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].count()
 
     sections_counts_by_class["Number Enrolled"] = enrollment_counts_by_class # adding enrollment by course
 
-    sections_counts_by_class.to_excel("Course Statistics.xlsx")
+
+
+
+    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
+
+    enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[["SPRIDEN_PIDM"]].nunique()
+
+    #print(en)
+
+    print(enrollment_by_year_and_term[sections_counts_by_class.iloc[0].name[2],sections_counts_by_class.iloc[0].name[3]])
+
+    # print(sections_counts_by_class.iloc[0].to_frame().iloc[1]) # accesses number enrolled only
+
+
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
@@ -157,12 +169,12 @@ def main():
     #classes_data.to_pickle("class_data.pickle", compression="xz")
 
 
-    #export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
+    export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
 
-    print("test")
+    #print(classes_data.groupby(["Academic Year", "Academic Term"])[["SPRIDEN_PIDM"]].nunique())
 
-    plot_a_class_enrollment(classes_data, "ENGL", "1101")
-    plot_a_class_section_frequency(classes_data, "ENGL", "1101")
+    #plot_a_class_enrollment(classes_data, "ENGL", "1101")
+    #plot_a_class_section_frequency(classes_data, "ENGL", "1101")
 
 if __name__ == "__main__":
     main()
