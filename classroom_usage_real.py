@@ -1,4 +1,5 @@
 import datetime
+from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -94,36 +95,59 @@ def export_course_statistics_to_xlsx(classes_data): # all good
 
     sections_counts_by_class["Ratio of Enrolled"] = number_enrolled_div_by_total_term_enrollment_ratio
 
-    test = sections_counts_by_class.iloc[(sections_counts_by_class.index.get_level_values(0).str.contains('ENGL')) & (sections_counts_by_class.index.get_level_values(1).str.contains('1101')) &
+    lin_reg_for_enrollment_ratio(sections_counts_by_class)
+
+    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
+
+def lin_reg_for_enrollment_ratio(sections_counts_by_class):
+    test = sections_counts_by_class.iloc[(sections_counts_by_class.index.get_level_values(0).str.contains('ENGL')) &
+                                         (sections_counts_by_class.index.get_level_values(1).str.contains('2220')) &
                                          (sections_counts_by_class.index.get_level_values(3).str.contains('Fall'))]
 
     test = test.drop(columns=["CRS Section Number", "Number Enrolled"])
 
-    time_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(2))
+    year_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(2)) #extract only the year and ratio from the dataframe
 
-    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in time_and_ratio_df.index] # converting fall years into datetime objects
+    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
+                    year_and_ratio_df.index]  # converting fall years into datetime objects
 
-    time_and_ratio_df.index = date_objects
+    year_and_ratio_df.index = date_objects
 
-    time_and_ratio_df.index.name = "Date"
-    time_and_ratio_df.index = time_and_ratio_df.index.map(datetime.datetime.toordinal)
+    year_and_ratio_df = pd.DataFrame(year_and_ratio_df)
 
-    print(time_and_ratio_df.index)
+    year_and_ratio_df.rename(columns={0: "Enrollment Ratio"}, inplace=True)
+
+    year_and_ratio_df["Years From Start"] = np.arange(len(year_and_ratio_df.index))
+
+    X = year_and_ratio_df.loc[:, ['Years From Start']]
+    y = year_and_ratio_df.loc[:, 'Enrollment Ratio']
+    print(X.shape)
 
 
-    plt.figure(figsize=(12,6))
+    model = LinearRegression(fit_intercept=True)
+    model.fit(X, y)
 
-    graph = sns.regplot(x=time_and_ratio_df.index, y=time_and_ratio_df.values, data=time_and_ratio_df)
+    year_and_ratio_df.index = year_and_ratio_df.index.map(datetime.datetime.toordinal)
 
-    graph.set_xlabel('date')
-    new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
-    graph.set_xticklabels(new_labels)
+    y_pred = pd.Series(model.predict(X), index=X.index)
 
-    graph.set(title="ENGL 1101 Fall Enrollment Ratios")
+    print(year_and_ratio_df)
+
+    y_pred.index = y_pred.index.map(datetime.datetime.toordinal)
+
+    print(y_pred)
+
+    # plt.figure(figsize=(12, 6))
+    # graph = sns.regplot(x=year_and_ratio_df.index, y=year_and_ratio_df.values, data=year_and_ratio_df)
+    #
+    # graph.set_xlabel('Date')
+    # graph.set_ylabel('Enrollment Ratio')
+    # new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
+    # graph.set_xticklabels(new_labels)
+    #
+    # graph.set(title="ENGL 2220 Fall Enrollment Ratios")
 
     plt.show()
-
-    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
