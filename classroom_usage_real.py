@@ -1,4 +1,4 @@
-import numpy
+import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,39 +17,6 @@ def get_bar_graph_of_total_enrollment_by_total_year(classes_data): # all good
     plt.ylabel("Academic years")
     plt.gcf().subplots_adjust(left=0.18)
     plt.show()
-
-def find_meeting_time_popularity(classes_data):
-    """
-    finding the frequencies of meet times during the full term.
-    grouping the data by academic year, then by part of term (wishing to do only full), and then counting the frequency of meet times
-    """
-    meeting_time_frequencies = classes_data.groupby(["Academic Year", "REG Part of Term"])[
-        "MEET Begin Time"].value_counts()
-    # how to do only full term? and then how to graph?
-    print(meeting_time_frequencies)
-    #print(meeting_time_frequencies.keys())
-    #print(meeting_time_frequencies.values)
-
-def find_parts_of_term_distribution(classes_data):
-    """
-    finding how many students participate in each term of the semester between
-    the full term, reg 1st 7 or 8 Weeks, and reg 2nd 7 or 8 Weeks
-    """
-
-    test = classes_data.loc[ (classes_data["REG Part of Term"] == "Full Term" ) | (classes_data["REG Part of Term"] == "Reg 1st 7 or 8 Weeks") | (classes_data["REG Part of Term"] == "Reg 2nd 7 or 8 Weeks") ]
-    # test.groupby(['Academic Year', 'Academic Term', "REG Part of Term"])["GS Student ID"].nunique().plot(kind='bar') # stopped working on this because there's no spring full term data?
-    #
-    # plt.show()
-    #plt.barh(part_of_term_distribution.unstack().columns, 10)
-
-
-    with sns.axes_style('white'):
-        g = sns.catplot(test, x = "Academic Year", aspect=4.0, kind='count',
-                           hue='REG Part of Term')
-
-    plt.show()
-
-
 
 def describe_data():
     print("""Academic Term: Spring, Fall, or Summer
@@ -130,15 +97,33 @@ def export_course_statistics_to_xlsx(classes_data): # all good
     test = sections_counts_by_class.iloc[(sections_counts_by_class.index.get_level_values(0).str.contains('ENGL')) & (sections_counts_by_class.index.get_level_values(1).str.contains('1101')) &
                                          (sections_counts_by_class.index.get_level_values(3).str.contains('Fall'))]
 
+    test = test.drop(columns=["CRS Section Number", "Number Enrolled"])
+
+    time_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(2))
+
+    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in time_and_ratio_df.index] # converting fall years into datetime objects
+
+    time_and_ratio_df.index = date_objects
+
+    time_and_ratio_df.index.name = "Date"
+    time_and_ratio_df.index = time_and_ratio_df.index.map(datetime.datetime.toordinal)
+
+    print(time_and_ratio_df.index)
+
+
     plt.figure(figsize=(12,6))
 
-    graph = sns.scatterplot(test, x="Academic Year", y=test["Ratio of Enrolled"])
+    graph = sns.regplot(x=time_and_ratio_df.index, y=time_and_ratio_df.values, data=time_and_ratio_df)
+
+    graph.set_xlabel('date')
+    new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
+    graph.set_xticklabels(new_labels)
 
     graph.set(title="ENGL 1101 Fall Enrollment Ratios")
 
     plt.show()
 
-    sections_counts_by_class.to_excel("Course Statistics.xlsx")
+    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
