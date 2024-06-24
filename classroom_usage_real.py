@@ -127,7 +127,18 @@ def export_course_statistics_to_xlsx(classes_data): # all good
 
     sections_counts_by_class["Ratio of Enrolled"] = number_enrolled_div_by_total_term_enrollment_ratio
 
-    # sections_counts_by_class.to_excel("Course Statistics.xlsx")
+    test = sections_counts_by_class.iloc[(sections_counts_by_class.index.get_level_values(0).str.contains('ENGL')) & (sections_counts_by_class.index.get_level_values(1).str.contains('1101')) &
+                                         (sections_counts_by_class.index.get_level_values(3).str.contains('Fall'))]
+
+    plt.figure(figsize=(12,6))
+
+    graph = sns.scatterplot(test, x="Academic Year", y=test["Ratio of Enrolled"])
+
+    graph.set(title="ENGL 1101 Fall Enrollment Ratios")
+
+    plt.show()
+
+    sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
