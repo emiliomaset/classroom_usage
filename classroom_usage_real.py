@@ -1,4 +1,5 @@
 import numpy
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -106,38 +107,33 @@ def get_graph_of_fall_enrollment_through_years(classes_data): # all good
             ["CRS Section Number", "GS Student ID"]].nunique()
         test.to_excel("test.xlsx")
 
-def export_all_classes_enrollments_and_sections_to_xlsx(classes_data): # all good
+def export_course_statistics_to_xlsx(classes_data): # all good
 
     sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].nunique()
-
 
     enrollment_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                                     "Academic Term"])[["CRS Section Number"]].count()
 
     sections_counts_by_class["Number Enrolled"] = enrollment_counts_by_class # adding enrollment by course
 
+    enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[["SPRIDEN_PIDM"]].nunique() # counting enrollment by year and term
 
+    number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1))
 
+    for i, index in enumerate(sections_counts_by_class.index): # divide course enrollment by total enrollment for that year and term
+       number_enrolled_div_by_total_term_enrollment_ratio[i] = (sections_counts_by_class["Number Enrolled"].iloc[i] /
+                                                                int(enrollment_by_year_and_term.loc[(sections_counts_by_class.iloc[i].name[2],sections_counts_by_class.iloc[i].name[3])]))
 
-    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
+    sections_counts_by_class["Ratio of Enrolled"] = number_enrolled_div_by_total_term_enrollment_ratio
 
-    enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[["SPRIDEN_PIDM"]].nunique()
-
-    #print(en)
-
-    print(enrollment_by_year_and_term[sections_counts_by_class.iloc[0].name[2],sections_counts_by_class.iloc[0].name[3]])
-
-    # print(sections_counts_by_class.iloc[0].to_frame().iloc[1]) # accesses number enrolled only
-
-
+    # sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
 
     sections_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                      "Academic Term"])[["CRS Section Number"]].nunique()
-
 
     graph = sns.catplot(sections_counts_by_class, x="Academic Year", y=sections_counts_by_class.values.flatten(), aspect=4.0, kind="bar",
                         hue='Academic Term')
@@ -162,16 +158,9 @@ def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Numbe
     plt.show()
 
 def main():
-    #classes_data = pd.read_excel("Course Dataset for Summer Program June20.xlsx")
     classes_data = pd.read_pickle("class_data.pickle", compression="xz")
 
-
-    #classes_data.to_pickle("class_data.pickle", compression="xz")
-
-
-    export_all_classes_enrollments_and_sections_to_xlsx(classes_data)
-
-    #print(classes_data.groupby(["Academic Year", "Academic Term"])[["SPRIDEN_PIDM"]].nunique())
+    export_course_statistics_to_xlsx(classes_data)
 
     #plot_a_class_enrollment(classes_data, "ENGL", "1101")
     #plot_a_class_section_frequency(classes_data, "ENGL", "1101")
