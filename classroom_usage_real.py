@@ -1,5 +1,7 @@
 import datetime
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -106,10 +108,9 @@ def lin_reg_for_enrollment_ratio(sections_counts_by_class):
 
     test = test.drop(columns=["CRS Section Number", "Number Enrolled"])
 
-    year_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(2)) #extract only the year and ratio from the dataframe
+    year_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(2)) # extract only the year and ratio from the dataframe
 
-    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
-                    year_and_ratio_df.index]  # converting fall years into datetime objects
+    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in year_and_ratio_df.index]  # converting fall years into datetime objects
 
     year_and_ratio_df.index = date_objects
 
@@ -117,35 +118,36 @@ def lin_reg_for_enrollment_ratio(sections_counts_by_class):
 
     year_and_ratio_df.rename(columns={0: "Enrollment Ratio"}, inplace=True)
 
-    year_and_ratio_df["Years From Start"] = np.arange(len(year_and_ratio_df.index))
+    year_and_ratio_df["Years From Start"] = np.arange(len(year_and_ratio_df.index)) # creating time-step column to perform linear regression
 
-    X = year_and_ratio_df.loc[:, ['Years From Start']]
-    y = year_and_ratio_df.loc[:, 'Enrollment Ratio']
-    print(X.shape)
-
+    X = year_and_ratio_df.loc[:, ['Years From Start']] # creating features matrix
+    y = year_and_ratio_df.loc[:, 'Enrollment Ratio'] # creating target vector
 
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
-    year_and_ratio_df.index = year_and_ratio_df.index.map(datetime.datetime.toordinal)
-
     y_pred = pd.Series(model.predict(X), index=X.index)
 
-    print(year_and_ratio_df)
-
+    year_and_ratio_df.index = year_and_ratio_df.index.map(datetime.datetime.toordinal)
     y_pred.index = y_pred.index.map(datetime.datetime.toordinal)
 
+    print(y)
     print(y_pred)
 
-    # plt.figure(figsize=(12, 6))
-    # graph = sns.regplot(x=year_and_ratio_df.index, y=year_and_ratio_df.values, data=year_and_ratio_df)
-    #
-    # graph.set_xlabel('Date')
-    # graph.set_ylabel('Enrollment Ratio')
-    # new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
-    # graph.set_xticklabels(new_labels)
-    #
-    # graph.set(title="ENGL 2220 Fall Enrollment Ratios")
+
+    print(f'{mean_squared_error(y, y_pred):.15f}')
+
+    year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True)
+
+    plt.figure(figsize=(12, 6))
+    graph = sns.regplot(x=year_and_ratio_df.index, y=year_and_ratio_df.values, data=year_and_ratio_df)
+
+    graph.set_xlabel('Date')
+    graph.set_ylabel('Enrollment Ratio')
+    new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
+    graph.set_xticklabels(new_labels)
+
+    graph.set(title="ENGL 2220 Fall Enrollment Ratios")
 
     plt.show()
 
