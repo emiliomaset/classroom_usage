@@ -91,13 +91,15 @@ def export_course_statistics_to_xlsx(classes_data): # all good
 
     number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1))
 
-    for i, index in enumerate(sections_counts_by_class.index): # divide course enrollment by total enrollment for that year and term
+    for i, index in enumerate(sections_counts_by_class.index): # divide course enrollment by total enrollment for that year and term. I suppose this can be done in a more efficient way, but I'm not sure how to do it.
        number_enrolled_div_by_total_term_enrollment_ratio[i] = (sections_counts_by_class["Number Enrolled"].iloc[i] /
                                                                 int(enrollment_by_year_and_term.loc[(sections_counts_by_class.iloc[i].name[2],sections_counts_by_class.iloc[i].name[3])]))
 
     sections_counts_by_class["Ratio of Enrolled"] = number_enrolled_div_by_total_term_enrollment_ratio
 
-    lin_reg_for_enrollment_ratio(sections_counts_by_class)
+    # some type of grouping of ratios here to pass to lin_reg_for_enrollment_ratio function for each group.
+
+    lin_reg_for_enrollment_ratio(sections_counts_by_class) # would like to create a model for each course for its fall and spring semesters, and then use that model to predict the ratio
 
     #sections_counts_by_class.to_excel("Course Statistics.xlsx")
 
@@ -134,10 +136,9 @@ def lin_reg_for_enrollment_ratio(sections_counts_by_class):
     print(y)
     print(y_pred)
 
-
     print(f'{mean_squared_error(y, y_pred):.15f}')
 
-    year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True)
+    year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True) # remove Years From Start column to graph
 
     plt.figure(figsize=(12, 6))
     graph = sns.regplot(x=year_and_ratio_df.index, y=year_and_ratio_df.values, data=year_and_ratio_df)
