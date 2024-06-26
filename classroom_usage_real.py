@@ -70,21 +70,24 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
                                                      "Academic Term"])[["CRS Section Number"]].nunique()
 
     enrollment_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
-                                                       "Academic Term"])[["CRS Section Number"]].count()
+                                                       "Academic Term"])[["Enrollment"]].sum()
 
     sections_counts_by_class["Number Enrolled"] = enrollment_counts_by_class  # adding enrollment by course
 
     enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[
-        ["SPRIDEN_PIDM"]].nunique()  # counting enrollment by year and term
+        ["Enrollment"]].sum()  # counting enrollment by year and term
+
+    print(enrollment_by_year_and_term) # wrong
 
     number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1)) # create array to store ratio
 
     for i, index in enumerate(sections_counts_by_class.index):  # divide course enrollment by total enrollment for that year and term.
-        # I suppose this can be done in a more efficient way, but I'm not sure how to do it.
+                                                                # I suppose this can be done in a more efficient way, but I'm not sure how to do it.
         number_enrolled_div_by_total_term_enrollment_ratio[i] = (sections_counts_by_class["Number Enrolled"].iloc[i] /
                                                                  int(enrollment_by_year_and_term.loc[(
                                                                  sections_counts_by_class.iloc[i].name[2],
                                                                  sections_counts_by_class.iloc[i].name[3])]))
+
 
     sections_counts_by_class["Enrollment Ratio"] = number_enrolled_div_by_total_term_enrollment_ratio
 
@@ -203,7 +206,10 @@ def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Numbe
 
 
 def main():
-    classes_data = pd.read_pickle("class_data.pickle", compression="xz")
+    #classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
+    #classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")
+
+    classes_data = pd.read_pickle("Course Data Set 6-26.pickle", compression="xz")
 
     export_course_statistics_to_xlsx(classes_data)
 
