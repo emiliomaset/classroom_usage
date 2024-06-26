@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
+pd.options.mode.chained_assignment = None
+
 def describe_data():
     print("""Academic Term: Spring, Fall, or Summer
 Academic Year:
@@ -106,7 +108,7 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
     print(sections_counts_by_class_copy)
 
-    sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
+    #sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
 
 
 def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
