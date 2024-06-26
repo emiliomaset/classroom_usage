@@ -106,9 +106,7 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
     sections_counts_by_class_copy["Ratio Prediction from Lin. Reg"] = prediction_list
 
-    print(sections_counts_by_class_copy)
-
-    #sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
+    sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
 
 
 def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
@@ -120,7 +118,7 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
     course_we_are_running_model_on_df.drop(columns=["CRS Section Number", "Number Enrolled"], inplace=True)
 
     if len(course_we_are_running_model_on_df) < 4:
-        return len(course_we_are_running_model_on_df) * [-1], course_we_are_running_model_on_df.index
+        return [-1], [course_we_are_running_model_on_df.index[len(course_we_are_running_model_on_df) - 1]]
 
     year_and_ratio_df = course_we_are_running_model_on_df[["Academic Year", "Enrollment Ratio"]]  # extract only the year and ratio from the dataframe
 
@@ -136,15 +134,17 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
 
     year_and_ratio_df["Years From Start"] = np.arange(len(year_and_ratio_df.index))  # creating time-step column to perform linear regression
 
-    X = year_and_ratio_df.loc[:, ['Years From Start']]  # creating features matrix
-    y = year_and_ratio_df.loc[:, 'Enrollment Ratio']  # creating target vector
+    X = year_and_ratio_df.loc[:, ['Years From Start']]  # creating features matrix, leaving out last row for testing purposes
+    X.drop(X.tail(1).index, inplace=True)
+    y = year_and_ratio_df.loc[:, 'Enrollment Ratio'] # creating target vector
+    y.drop(y.tail(1).index, inplace=True)
 
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
     #graph_lin_reg(model, year_and_ratio_df, model_course, X)
 
-    return model.predict(X), year_and_ratio_df.index
+    return model.predict(year_and_ratio_df.iloc[-1]["Years From Start"].reshape(-1,1)), [year_and_ratio_df.iloc[-1].name]
 def graph_lin_reg(model, year_and_ratio_df, model_course, X):
     y_pred = pd.Series(model.predict(X), index=year_and_ratio_df["Academic Year"])
 
