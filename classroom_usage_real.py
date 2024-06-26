@@ -9,6 +9,8 @@ import seaborn as sns
 
 sns.set()
 
+import warnings
+warnings.filterwarnings("ignore")
 
 def get_bar_graph_of_total_enrollment_by_total_year(classes_data):  # all good
     """
@@ -103,26 +105,29 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
                                                                  sections_counts_by_class.iloc[i].name[2],
                                                                  sections_counts_by_class.iloc[i].name[3])]))
 
-    sections_counts_by_class["Ratio of Enrolled"] = number_enrolled_div_by_total_term_enrollment_ratio
+    sections_counts_by_class["Enrollment Ratio"] = number_enrolled_div_by_total_term_enrollment_ratio
 
     # print(ratios_indices)
     #
-    # print(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Ratio of Enrolled"].unique())
+    # print(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique())
     #
+
+    sections_counts_by_class.reset_index(inplace=True)
+    #print(sections_counts_by_class)
 
     prediction_list = []
 
     for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])[
-                                 "Ratio of Enrolled"].unique().index):
+                                 "Enrollment Ratio"].unique().index):
        prediction_list.extend(lin_reg_for_enrollment_ratio(item, sections_counts_by_class)) # run a model for each course
                                                                                             # issue here. order is not preserved when returning predictions
 
-    sections_counts_by_class["Ratio Prediction from Lin. Reg"] = prediction_list[:-101]
+    #sections_counts_by_class["Ratio Prediction from Lin. Reg"] = prediction_list[:-101]
 
-    # for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Ratio of Enrolled"].unique()):
+    # for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique()):
     #     print(ratios_indices[i], item)
 
-    # for item in sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Ratio of Enrolled"].unique():
+    # for item in sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique():
     #     print(item.index)
 
     # some type of grouping of ratios here to pass to lin_reg_for_enrollment_ratio function for each group.
@@ -134,32 +139,25 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
 
 def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
-    test = sections_counts_by_class.iloc[
-        (sections_counts_by_class.index.get_level_values(0).str.contains(model_course[0])) &
-        (sections_counts_by_class.index.get_level_values(1).str.contains(model_course[1])) &
-        (sections_counts_by_class.index.get_level_values(3).str.contains(model_course[2]))]
+
+    test = sections_counts_by_class[ (sections_counts_by_class["CRS Subject"] == model_course[0]) &
+        (sections_counts_by_class["CRS Course Number"] == model_course[1]) &
+        ((sections_counts_by_class["Academic Term"] == model_course[2]))]
 
     test = test.drop(columns=["CRS Section Number", "Number Enrolled"])
-
-    print(test)
 
     if len(test) < 4:
         return len(test) * [-1]
 
-    year_and_ratio_df = pd.Series(test.values.flatten(), index=test.index.get_level_values(
-        2))  # extract only the year and ratio from the dataframe
+    year_and_ratio_df = test[["Academic Year", "Enrollment Ratio"]]  # extract only the year and ratio from the dataframe
+
 
     date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
-                    year_and_ratio_df.index]  # converting fall years into datetime objects
+                    year_and_ratio_df["Academic Year"]]  # converting fall years into datetime objects
 
-    year_and_ratio_df.index = date_objects
+    year_and_ratio_df["Academic Year"] = date_objects
 
-    year_and_ratio_df = pd.DataFrame(year_and_ratio_df)
-
-    year_and_ratio_df.rename(columns={0: "Enrollment Ratio"}, inplace=True)
-
-    year_and_ratio_df["Years From Start"] = np.arange(
-        len(year_and_ratio_df.index))  # creating time-step column to perform linear regression
+    year_and_ratio_df["Years From Start"] = np.arange(len(year_and_ratio_df.index))  # creating time-step column to perform linear regression
 
     X = year_and_ratio_df.loc[:, ['Years From Start']]  # creating features matrix
     y = year_and_ratio_df.loc[:, 'Enrollment Ratio']  # creating target vector
@@ -169,28 +167,32 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
 
     y_pred = pd.Series(model.predict(X), index=X.index)
 
-    year_and_ratio_df.index = year_and_ratio_df.index.map(datetime.datetime.toordinal)
-    y_pred.index = y_pred.index.map(datetime.datetime.toordinal)
-
-    #print(f'mean squared error: {mean_squared_error(y, y_pred):.15f}')
-
+    print(year_and_ratio_df)
     print(model.predict(X))
+
+    print(f'mean squared error: {mean_squared_error(y, y_pred):.15f}')
+
+
+    year_and_ratio_df["Academic Year"]= year_and_ratio_df["Academic Year"].map(datetime.datetime.toordinal) # for graphing
+    # y_pred.index = y_pred.index.map(datetime.datetime.toordinal) # for graphing?
+
+    year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True) # remove Years From Start column to graph
+
+    plt.figure(figsize=(12, 6))
+    graph = sns.regplot(x=year_and_ratio_df["Academic Year"], y=year_and_ratio_df["Enrollment Ratio"], data=year_and_ratio_df)
+
+    graph.set_xlabel('Date')
+    graph.set_ylabel('Enrollment Ratio')
+    new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
+    graph.set_xticklabels(new_labels)
+
+    graph.set(title= f"{model_course[0]} { model_course[1]} {model_course[2]} Enrollment Ratios")
+
+    plt.show()
 
     return model.predict(X)
 
-    # year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True) # remove Years From Start column to graph
-    #
-    # plt.figure(figsize=(12, 6))
-    # graph = sns.regplot(x=year_and_ratio_df.index, y=year_and_ratio_df.values, data=year_and_ratio_df)
-    #
-    # graph.set_xlabel('Date')
-    # graph.set_ylabel('Enrollment Ratio')
-    # new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
-    # graph.set_xticklabels(new_labels)
-    #
-    # graph.set(title= f"{model_course[0]} { model_course[1]} {model_course[2]} Enrollment Ratios")
-    #
-    # plt.show()
+
 
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
