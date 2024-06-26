@@ -1,30 +1,10 @@
 import datetime
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 sns.set()
-
-import warnings
-warnings.filterwarnings("ignore")
-
-def get_bar_graph_of_total_enrollment_by_total_year(classes_data):  # all good
-    """
-    finding and creating a bar graph of total enrollment by year. that is, the sum of how many courses each student took
-    """
-    year_vs_enrollment = classes_data["Academic Year"].value_counts()
-    year_vs_enrollment = year_vs_enrollment.sort_index()
-    plt.barh(year_vs_enrollment.keys(), year_vs_enrollment.values)
-    plt.title("Academic years and their enrollments (Fall, Spring, Summer) at FSU")
-    plt.xlabel("Total enrollment among all courses")
-    plt.ylabel("Academic years")
-    plt.gcf().subplots_adjust(left=0.18)
-    plt.show()
-
 
 def describe_data():
     print("""Academic Term: Spring, Fall, or Summer
@@ -95,10 +75,9 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
     enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[
         ["SPRIDEN_PIDM"]].nunique()  # counting enrollment by year and term
 
-    number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1))
+    number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1)) # create array to store ratio
 
-    for i, index in enumerate(
-            sections_counts_by_class.index):  # divide course enrollment by total enrollment for that year and term.
+    for i, index in enumerate(sections_counts_by_class.index):  # divide course enrollment by total enrollment for that year and term.
         # I suppose this can be done in a more efficient way, but I'm not sure how to do it.
         number_enrolled_div_by_total_term_enrollment_ratio[i] = (sections_counts_by_class["Number Enrolled"].iloc[i] /
                                                                  int(enrollment_by_year_and_term.loc[(
@@ -107,53 +86,49 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
     sections_counts_by_class["Enrollment Ratio"] = number_enrolled_div_by_total_term_enrollment_ratio
 
-    # print(ratios_indices)
-    #
-    # print(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique())
-    #
+    sections_counts_by_class_copy = sections_counts_by_class.copy() # make copy to use when exporting to excel
+                                                                    # makes excel file easier to read
 
-    sections_counts_by_class.reset_index(inplace=True)
-    #print(sections_counts_by_class)
+    sections_counts_by_class.reset_index(inplace=True) # reset index to use indices for filling array of predictions
 
-    prediction_list = []
+    prediction_list = np.zeros(shape=(15388, 1))
 
     for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])[
                                  "Enrollment Ratio"].unique().index):
-       prediction_list.extend(lin_reg_for_enrollment_ratio(item, sections_counts_by_class)) # run a model for each course
-                                                                                            # issue here. order is not preserved when returning predictions
 
-    #sections_counts_by_class["Ratio Prediction from Lin. Reg"] = prediction_list[:-101]
+        predictions, indices_for_sheet = lin_reg_for_enrollment_ratio(item, sections_counts_by_class) # run a model for each course
 
-    # for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique()):
-    #     print(ratios_indices[i], item)
+        for i, index in enumerate(indices_for_sheet): # populate predictions array
+            prediction_list[index] = predictions[i]
 
-    # for item in sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])["Enrollment Ratio"].unique():
-    #     print(item.index)
 
-    # some type of grouping of ratios here to pass to lin_reg_for_enrollment_ratio function for each group.
+    sections_counts_by_class_copy["Ratio Prediction from Lin. Reg"] = prediction_list
 
-    #lin_reg_for_enrollment_ratio(sections_counts_by_class) # would like to create a model for each course for its fall and spring semesters,
-    # and then use that model to predict the ratio for the term to see accuracy
+    print(sections_counts_by_class_copy)
 
-    #sections_counts_by_class.to_excel("Course Statistics.xlsx")
+    sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
 
 
 def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
 
-    test = sections_counts_by_class[ (sections_counts_by_class["CRS Subject"] == model_course[0]) &
+    course_we_are_running_model_on_df = sections_counts_by_class[ (sections_counts_by_class["CRS Subject"] == model_course[0]) & # get dataframe of course and term we are running model for
         (sections_counts_by_class["CRS Course Number"] == model_course[1]) &
         ((sections_counts_by_class["Academic Term"] == model_course[2]))]
 
-    test = test.drop(columns=["CRS Section Number", "Number Enrolled"])
+    course_we_are_running_model_on_df.drop(columns=["CRS Section Number", "Number Enrolled"], inplace=True)
 
-    if len(test) < 4:
-        return len(test) * [-1]
+    if len(course_we_are_running_model_on_df) < 4:
+        return len(course_we_are_running_model_on_df) * [-1], course_we_are_running_model_on_df.index
 
-    year_and_ratio_df = test[["Academic Year", "Enrollment Ratio"]]  # extract only the year and ratio from the dataframe
+    year_and_ratio_df = course_we_are_running_model_on_df[["Academic Year", "Enrollment Ratio"]]  # extract only the year and ratio from the dataframe
 
+    if model_course[2] == "Fall":
+        date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
+                        year_and_ratio_df["Academic Year"]]  # converting fall years into datetime objects
 
-    date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
-                    year_and_ratio_df["Academic Year"]]  # converting fall years into datetime objects
+    else:
+        date_objects = [datetime.date(int(x[:4]), 1, 1) for x in
+                        year_and_ratio_df["Academic Year"]]  # converting spring years into datetime objects
 
     year_and_ratio_df["Academic Year"] = date_objects
 
@@ -165,12 +140,13 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
-    y_pred = pd.Series(model.predict(X), index=X.index)
+    #graph_lin_reg(model, year_and_ratio_df, model_course, X)
 
-    print(year_and_ratio_df)
-    print(model.predict(X))
+    return model.predict(X), year_and_ratio_df.index
+def graph_lin_reg(model, year_and_ratio_df, model_course, X):
+    y_pred = pd.Series(model.predict(X), index=year_and_ratio_df["Academic Year"])
 
-    print(f'mean squared error: {mean_squared_error(y, y_pred):.15f}')
+    #print(f'mean squared error: {mean_squared_error(y, y_pred):.15f}')
 
 
     year_and_ratio_df["Academic Year"]= year_and_ratio_df["Academic Year"].map(datetime.datetime.toordinal) # for graphing
@@ -189,11 +165,6 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class):
     graph.set(title= f"{model_course[0]} { model_course[1]} {model_course[2]} Enrollment Ratios")
 
     plt.show()
-
-    return model.predict(X)
-
-
-
 
 def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
     class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (
