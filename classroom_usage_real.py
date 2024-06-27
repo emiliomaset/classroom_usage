@@ -64,7 +64,7 @@ def get_graph_of_fall_enrollment_through_years(classes_data):  # all good
         test.to_excel("test.xlsx")
 
 
-def export_course_statistics_to_xlsx(classes_data):  # all good
+def export_course_statistics_to_xlsx(classes_data, old_classes_data):
 
     sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
                                                      "Academic Term"])[["CRS Section Number"]].nunique()
@@ -74,12 +74,10 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
     sections_counts_by_class["Number Enrolled"] = enrollment_counts_by_class  # adding enrollment by course
 
-    enrollment_by_year_and_term = classes_data.groupby(["Academic Year", "Academic Term"])[
-        ["Enrollment"]].sum()  # counting enrollment by year and term
+    enrollment_by_year_and_term = old_classes_data.groupby(["Academic Year", "Academic Term"])[
+        ["SPRIDEN_PIDM"]].nunique()  # counting enrollment by year and term
 
-    print(enrollment_by_year_and_term) # wrong
-
-    number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(15388, 1)) # create array to store ratio
+    number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(13826, 1)) # create array to store ratio
 
     for i, index in enumerate(sections_counts_by_class.index):  # divide course enrollment by total enrollment for that year and term.
                                                                 # I suppose this can be done in a more efficient way, but I'm not sure how to do it.
@@ -96,7 +94,7 @@ def export_course_statistics_to_xlsx(classes_data):  # all good
 
     sections_counts_by_class.reset_index(inplace=True) # reset index to use indices for filling array of predictions
 
-    prediction_list = np.zeros(shape=(15388, 1))
+    prediction_list = np.zeros(shape=(13826, 1))
 
     for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])[
                                  "Enrollment Ratio"].unique().index):
@@ -210,8 +208,10 @@ def main():
     #classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")
 
     classes_data = pd.read_pickle("Course Data Set 6-26.pickle", compression="xz")
+    old_classes_data = pd.read_pickle("class_data.pickle", compression="xz")
+    classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
 
-    export_course_statistics_to_xlsx(classes_data)
+    export_course_statistics_to_xlsx(classes_data, old_classes_data)
 
     #plot_a_class_enrollment(classes_data, "ENGL", "1101")
     #plot_a_class_section_frequency(classes_data, "ENGL", "1101")
