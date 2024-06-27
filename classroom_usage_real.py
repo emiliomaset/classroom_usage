@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set()
+sns.set(font_scale = 1.5)
 
 pd.options.mode.chained_assignment = None
 
@@ -94,8 +94,6 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
 
     sections_counts_by_class.reset_index(inplace=True) # reset index to use indices for filling array of predictions
 
-
-
     prediction_list_using_all_years = np.zeros(shape=(13826, 1))
 
     for i, item in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])[
@@ -106,6 +104,7 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
         for i, index in enumerate(indices_for_sheet): # populate predictions array
             prediction_list_using_all_years[index] = predictions[i]
 
+    print("Hello")
 
     prediction_list_using_three_years = np.zeros(shape=(13826, 1))
 
@@ -118,9 +117,9 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
             prediction_list_using_three_years[index] = predictions[i]
 
 
-    sections_counts_by_class_copy["Ratio Prediction from Lin. Reg Using All Data"] = prediction_list_using_all_years
+    sections_counts_by_class_copy["Ratio Pred. from Lin. Reg Using All Data"] = prediction_list_using_all_years
 
-    sections_counts_by_class_copy["Ratio Prediction from Lin. Reg Using 3 Recent Years"] = prediction_list_using_three_years
+    sections_counts_by_class_copy["Ratio Pred. from Lin. Reg Using 3 Recent Years"] = prediction_list_using_three_years
 
     sections_counts_by_class_copy.to_excel("Course Statistics.xlsx")
 
@@ -156,19 +155,26 @@ def lin_reg_for_enrollment_ratio(model_course, sections_counts_by_class, how_far
 
     if how_far_we_are_looking == "3":
         if len(X) > 3: # for using only most recent 3 years to predict the actual recent year
-            X.drop(X.head(len(X) - 3).index, inplace=True)
             y.drop(y.head(len(y) - 3).index, inplace=True)
+            X.drop(X.head(len(X) - 3).index, inplace=True)
             X["Years From Start"] = 0, 1, 2
 
 
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
+    # print(course_we_are_running_model_on_df)
+    # print(X)
+    # print(y)
+    # print(model.predict( (X.iloc[-1]["Years From Start"] + 1).reshape(-1,1)))
+    # print(model.coef_, model.intercept_)
+
     #graph_lin_reg(model, year_and_ratio_df, model_course, X)
 
-    return model.predict(year_and_ratio_df.iloc[-1]["Years From Start"].reshape(-1,1)), [year_and_ratio_df.iloc[-1].name]
+    return model.predict( (X.iloc[-1]["Years From Start"] + 1).reshape(-1,1)), [year_and_ratio_df.iloc[-1].name]
+
 def graph_lin_reg(model, year_and_ratio_df, model_course, X):
-    y_pred = pd.Series(model.predict(X), index=year_and_ratio_df["Academic Year"])
+    #y_pred = pd.Series(model.predict(X), index=year_and_ratio_df["Academic Year"][:-1])
 
     #print(f'mean squared error: {mean_squared_error(y, y_pred):.15f}')
 
@@ -176,17 +182,18 @@ def graph_lin_reg(model, year_and_ratio_df, model_course, X):
     year_and_ratio_df["Academic Year"]= year_and_ratio_df["Academic Year"].map(datetime.datetime.toordinal) # for graphing
     # y_pred.index = y_pred.index.map(datetime.datetime.toordinal) # for graphing?
 
-    year_and_ratio_df.drop(['Years From Start'], axis=1, inplace=True) # remove Years From Start column to graph
+    year_and_ratio_df = year_and_ratio_df.drop(['Years From Start'], axis=1) # remove Years From Start column to graph
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(16, 6))
     graph = sns.regplot(x=year_and_ratio_df["Academic Year"], y=year_and_ratio_df["Enrollment Ratio"], data=year_and_ratio_df)
 
-    graph.set_xlabel('Date')
-    graph.set_ylabel('Enrollment Ratio')
+    graph.axes.set_title(f"{model_course[0]} {model_course[1]} {model_course[2]} Enrollment Ratios", fontsize=30)
+    graph.set_xlabel('Date', fontsize=25)
+    graph.set_ylabel('Enrollment Ratio', fontsize=22)
+    graph.tick_params(labelsize=18)
     new_labels = [datetime.date.fromordinal(int(item)) for item in graph.get_xticks()]
     graph.set_xticklabels(new_labels)
-
-    graph.set(title= f"{model_course[0]} { model_course[1]} {model_course[2]} Enrollment Ratios")
+    plt.gcf().subplots_adjust(bottom=0.13)
 
     plt.show()
 
