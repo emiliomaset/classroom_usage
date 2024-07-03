@@ -51,6 +51,8 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
     enrollment_by_year_and_term = old_classes_data.groupby(["Academic Year", "Academic Term"])[
         ["SPRIDEN_PIDM"]].nunique()  # counting enrollment by year and term
 
+    print(enrollment_by_year_and_term)
+
     number_enrolled_div_by_total_term_enrollment_ratio = np.zeros(shape=(13826, 1))  # create array to store ratio
 
     for i, index in enumerate(
@@ -267,21 +269,26 @@ def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Numbe
 
 
 def main():
-    #classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
-    #classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")
+    # classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
+    # classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")
+    #classes_data = pd.read_pickle("Course Data Set 6-26.pickle", compression="xz")
 
-    # classes_data = pd.read_pickle("Course Data Set 6-26.pickle", compression="xz")
+    # old_classes_data = pd.read_excel("Course Dataset for Summer Program June20.xlsx")
+    # old_classes_data.to_pickle("class_data.pickle", compression="xz")
     old_classes_data = pd.read_pickle("class_data.pickle", compression="xz")
-    # classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
-    #
-    # export_course_statistics_to_xlsx(classes_data, old_classes_data)
 
-    # data_for_tree = pd.read_excel("2020-2021_2021-2022StudentData.xlsx")
-    # data_for_tree.to_pickle("2020-2021_2021-2022StudentData.pkl")
+    #classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
+    #export_course_statistics_to_xlsx(classes_data, old_classes_data)
 
-    data_for_tree = pd.read_pickle("2020-2021_2021-2022StudentData.pkl")
-    fall_2020_students_df = data_for_tree.loc[
-        (data_for_tree["Academic Term"] == "Fall") & (data_for_tree["Academic Year"] == "2020-2021")]
+    fall_2020_students_df = pd.read_pickle("class_data.pickle", compression="xz")
+    fall_2020_students_df = fall_2020_students_df.loc[
+        (fall_2020_students_df["Academic Term"] == "Fall") & (fall_2020_students_df["Academic Year"] == "2020-2021")]
+    fall_2020_students_df = fall_2020_students_df.drop(columns=["SFRSTCR_TERM_CODE", "CRS Subject", "CRS CRN", "CRS Course Number", "CRS Course Level", "CRS Section Number",
+                                                                "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
+                                                                "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
+                                                                "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days"])
+    print(fall_2020_students_df.columns)
+
     fall_2020_students_df = fall_2020_students_df.drop_duplicates(subset=['SPRIDEN_PIDM'])
     ord_enc = OrdinalEncoder()
     for columns in fall_2020_students_df.columns[4:]:
@@ -291,25 +298,19 @@ def main():
         (old_classes_data["Academic Year"] == "2021-2022") & (old_classes_data["Academic Term"] == "Fall")
         & (old_classes_data["CRS Subject"] == "ENGL") & (old_classes_data["CRS Course Number"] == "1101")]
 
-    fall_2020_students_df.reset_index(inplace=True)
+
+    fall_2020_students_df.reset_index(inplace=True, drop=True)
 
     target_vector = np.zeros(shape=(len(fall_2020_students_df), 1))
 
-    # for student_id in fall_2020_students_df["SPRIDEN_PIDM"]:
-    #     print(student_id)
-    #     # if student_id in training_course["SPRIDEN_PIDM"]:
-    #     #     target_vector[]
+    for i in range(0, len(fall_2020_students_df)):
+        if str(fall_2020_students_df.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
+            target_vector[i] = 1
 
-    print("437471" in training_course["SPRIDEN_PIDM"].to_string())
 
-    print(fall_2020_students_df.shape)
+    fall_2020_students_df["Took Target Course Next Year?"] = target_vector
 
-    for row in fall_2020_students_df.iterrows():
-        if str(row[1][3]) in training_course["SPRIDEN_PIDM"].to_string():
-            target_vector[row[0]] = 1
 
-    # for student_ids in data_for_tree.groupby(["Academic Year", "Academic Term"])["SPRIDEN_PIDM"].unique()[0]:
-    #     print(data_for_tree[data_for_tree["SPRIDEN_PIDM"] == student_ids].head(1))
 
 
 if __name__ == "__main__":
