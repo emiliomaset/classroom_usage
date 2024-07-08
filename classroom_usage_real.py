@@ -1,12 +1,19 @@
 import datetime
+
+from IPython.core.display_functions import display
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import PredictionErrorDisplay
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder
+import graphviz
 import warnings
+
+from sklearn.tree import export_graphviz
 
 warnings.filterwarnings("ignore")
 
@@ -267,6 +274,32 @@ def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Numbe
     graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Enrollment by Year and Term")
     plt.show()
 
+def preprocess_student_data(student_data):
+    student_data.drop(columns=["SFRSTCR_TERM_CODE", "CRS Subject", "CRS CRN", "CRS Course Number", "CRS Course Level",
+                 "CRS Section Number",
+                 "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
+                 "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
+                 "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days"],
+        inplace=True)
+
+    student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
+    student_data.dropna(inplace=True)
+    ord_enc = OrdinalEncoder()
+    for columns in student_data.columns[4:]:
+        student_data[columns] = ord_enc.fit_transform(student_data[[columns]])
+
+    student_data.reset_index(inplace=True, drop=True)
+
+    return student_data
+
+def create_target_vector_for_rf_model(student_data, training_course):
+    target_vector = np.zeros(shape=(len(student_data), 1))
+
+    for i in range(0, len(student_data)):
+        if str(student_data.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
+            target_vector[i] = 1
+
+    return target_vector
 
 def main():
     # classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
@@ -280,38 +313,71 @@ def main():
     #classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
     #export_course_statistics_to_xlsx(classes_data, old_classes_data)
 
-    fall_2020_students_df = pd.read_pickle("class_data.pickle", compression="xz")
-    fall_2020_students_df = fall_2020_students_df.loc[
-        (fall_2020_students_df["Academic Term"] == "Fall") & (fall_2020_students_df["Academic Year"] == "2020-2021")]
-    fall_2020_students_df = fall_2020_students_df.drop(columns=["SFRSTCR_TERM_CODE", "CRS Subject", "CRS CRN", "CRS Course Number", "CRS Course Level", "CRS Section Number",
-                                                                "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
-                                                                "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
-                                                                "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days"])
-    print(fall_2020_students_df.columns)
 
-    fall_2020_students_df = fall_2020_students_df.drop_duplicates(subset=['SPRIDEN_PIDM'])
-    ord_enc = OrdinalEncoder()
-    for columns in fall_2020_students_df.columns[4:]:
-        fall_2020_students_df[columns] = ord_enc.fit_transform(fall_2020_students_df[[columns]])
+    all_student_data = pd.read_pickle("class_data.pickle", compression="xz")
+    fall_2020_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2020-2021")]
+
+    fall_2020_students_df = preprocess_student_data(fall_2020_students_df)
 
     training_course = old_classes_data.loc[
         (old_classes_data["Academic Year"] == "2021-2022") & (old_classes_data["Academic Term"] == "Fall")
         & (old_classes_data["CRS Subject"] == "ENGL") & (old_classes_data["CRS Course Number"] == "1101")]
 
+    target_vector = create_target_vector_for_rf_model(fall_2020_students_df, training_course)
 
-    fall_2020_students_df.reset_index(inplace=True, drop=True)
+    X_train, X_test, y_train, y_test = train_test_split(fall_2020_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]), target_vector, test_size=0.2)
 
-    target_vector = np.zeros(shape=(len(fall_2020_students_df), 1))
+    rf_model = RandomForestClassifier()
+    rf_model.fit(X_train, y_train)
 
-    for i in range(0, len(fall_2020_students_df)):
-        if str(fall_2020_students_df.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-            target_vector[i] = 1
+    for i in range(0, len(rf_model.feature_importances_)):
+        print(X_train.columns[i], rf_model.feature_importances_[i] * 100)
+
+    y_pred = rf_model.predict(X_test)
+
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy of predicting whether a student enrolls in ENGL 1101 in Fall 2021 using Fall 2020 student data:", accuracy)
 
 
-    fall_2020_students_df["Took Target Course Next Year?"] = target_vector
 
 
 
+    fall_2021_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
+
+    fall_2021_students_df = preprocess_student_data(fall_2021_students_df)
+
+    training_course = old_classes_data.loc[
+        (old_classes_data["Academic Year"] == "2022-2023") & (old_classes_data["Academic Term"] == "Fall")
+        & (old_classes_data["CRS Subject"] == "ENGL") & (old_classes_data["CRS Course Number"] == "1101")]
+
+    target_vector = create_target_vector_for_rf_model(fall_2021_students_df, training_course)
+
+    y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
+
+    accuracy = accuracy_score(target_vector, y_pred)
+    print("Accuracy of predicting whether a student enrolls in ENGL 1101 in Fall 2022 using Fall 2021 student data:", accuracy)
+
+
+
+
+
+    fall_2022_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2022-2023")]
+
+    fall_2022_students_df = preprocess_student_data(fall_2022_students_df)
+
+    training_course = old_classes_data.loc[
+        (old_classes_data["Academic Year"] == "2023-2024") & (old_classes_data["Academic Term"] == "Fall")
+        & (old_classes_data["CRS Subject"] == "ENGL") & (old_classes_data["CRS Course Number"] == "1101")]
+
+    target_vector = create_target_vector_for_rf_model(fall_2022_students_df, training_course)
+
+    y_pred = rf_model.predict(fall_2022_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
+
+    accuracy = accuracy_score(target_vector, y_pred)
+    print("Accuracy of predicting whether a student enrolls in ENGL 1101 in Fall 2023 using Fall 2022 student data:", accuracy)
 
 if __name__ == "__main__":
     main()
