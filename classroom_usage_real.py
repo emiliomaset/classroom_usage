@@ -1,21 +1,15 @@
 import datetime
 import sys
-
 import numpy
-from IPython.core.display_functions import display
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder
-import graphviz
 import warnings
 
-from sklearn.tree import export_graphviz
 
 warnings.filterwarnings("ignore")
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -333,16 +327,30 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
 
+    # fall_2021_students_df = all_student_data.loc[
+    #     (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
+
     correct_predictions = 0
     type_1_errors = 0
     type_2_errors = 0
 
+    print(f"\n\nstudents in {course_subject} {course_number}")
+
     for i in range(0, len(target_vector)):
+        if target_vector[i] == 1:
+            print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
         correct_predictions += target_vector[i] and y_pred[i] # correct predictions
         if target_vector[i] == 0 and y_pred[i] == 1:
             type_1_errors += 1
         if target_vector[i] == 1 and y_pred[i] == 0:
             type_2_errors += 1
+
+    print(f"\nstudents predicted to be in {course_subject} {course_number}")
+
+    for i in range(0, len(target_vector)):
+        if y_pred[i] == 1:
+            print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
+
 
     print(f"{int(sum(target_vector))} students from 2021 took the course in 2022. {int(correct_predictions)} predictions were correct. there were {type_1_errors} false positives and {type_2_errors} false negatives.")
 
@@ -360,10 +368,10 @@ def main():
 
     all_student_data = pd.read_pickle("class_data.pickle", compression="xz")
 
-    create_rf_model_for_course(all_student_data, "ENGL", "1101")
-    # create_rf_model_for_course(all_student_data, "MATH", "2501")
-    # create_rf_model_for_course(all_student_data, "MATH", "3520")
-    # create_rf_model_for_course(all_student_data, "MATH", "2562")
+   # create_rf_model_for_course(all_student_data, "ENGL", "1101")
+    create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
+    create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
+    create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
 
 
 if __name__ == "__main__":
