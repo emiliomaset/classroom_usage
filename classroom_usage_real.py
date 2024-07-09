@@ -287,6 +287,7 @@ def preprocess_student_data(student_data):
 
     student_data.reset_index(inplace=True, drop=True)
 
+
     return student_data
 
 def create_target_vector_for_rf_model(student_data, training_course):
@@ -327,9 +328,6 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
 
-    # fall_2021_students_df = all_student_data.loc[
-    #     (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
-
     correct_predictions = 0
     type_1_errors = 0
     type_2_errors = 0
@@ -369,9 +367,9 @@ def main():
     all_student_data = pd.read_pickle("class_data.pickle", compression="xz")
 
    # create_rf_model_for_course(all_student_data, "ENGL", "1101")
-    create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
+   #  create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
     create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
-    create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
+    # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
 
 
 if __name__ == "__main__":
