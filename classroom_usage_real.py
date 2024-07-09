@@ -312,7 +312,7 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
     features_matrix = pd.DataFrame(students_in_training_course)
     features_matrix["Enrolled in Course Next Year"] = target_vector
 
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 2))
+    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 3))
 
     return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
 
@@ -399,8 +399,9 @@ def main():
 
     # create_rf_model_for_course(all_student_data, "ENGL", "1101")
     # create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
-    create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
-    #create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
+    # create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
+    # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
+    create_rf_model_for_course(all_student_data, "COMP", "2270")
 
 
 if __name__ == "__main__":
