@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.metrics import confusion_matrix, recall_score
 from sklearn.preprocessing import OrdinalEncoder
 import warnings
 
@@ -276,28 +277,44 @@ def preprocess_student_data(student_data):
                  "CRS Section Number",
                  "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
                  "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
-                 "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days"],
+                 "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days",
+                  "GS Age at Enrollment", "GS Residency", "GS Student Type"],
         inplace=True)
 
     student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
     student_data.dropna(inplace=True)
     ord_enc = OrdinalEncoder()
-    for columns in student_data.columns[4:]:
+    for columns in student_data.columns[3:]:
         student_data[columns] = ord_enc.fit_transform(student_data[[columns]])
 
     student_data.reset_index(inplace=True, drop=True)
 
-
     return student_data
 
-def create_target_vector_for_rf_model(student_data, training_course):
-    target_vector = np.zeros(shape=(len(student_data), 1))
+def create_features_matrix_and_target_vector_for_rf_model(student_data, training_course):
+    indices_of_students_in_training_course = []
+
+    is_in_course = np.zeros(shape=(len(student_data), 1))
 
     for i in range(0, len(student_data)):
         if str(student_data.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-            target_vector[i] = 1
+            indices_of_students_in_training_course.append(i)
+            is_in_course[i] = 1
 
-    return target_vector
+    student_data["Enrolled in Course Next Year"] = is_in_course
+
+    students_in_training_course = []
+    for i in indices_of_students_in_training_course:
+        students_in_training_course.append(student_data.iloc[i])
+
+    target_vector = np.ones(shape=(len(students_in_training_course), 1))
+
+    features_matrix = pd.DataFrame(students_in_training_course)
+    features_matrix["Enrolled in Course Next Year"] = target_vector
+
+    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 2))
+
+    return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
 
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
@@ -310,7 +327,7 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
         (all_student_data["Academic Year"] == "2021-2022") & (all_student_data["Academic Term"] == "Fall")
         & (all_student_data["CRS Subject"] == course_subject) & (all_student_data["CRS Course Number"] == course_number)]
 
-    target_vector = create_target_vector_for_rf_model(fall_2020_students_df, training_course)
+    fall_2020_students_df, target_vector = create_features_matrix_and_target_vector_for_rf_model(fall_2020_students_df, training_course)
 
     rf_model = RandomForestClassifier()
     rf_model.fit(fall_2020_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]), target_vector)
@@ -324,9 +341,23 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
         (all_student_data["Academic Year"] == "2022-2023") & (all_student_data["Academic Term"] == "Fall")
         & (all_student_data["CRS Subject"] == course_subject) & (all_student_data["CRS Course Number"] == course_number)]
 
-    target_vector = create_target_vector_for_rf_model(fall_2021_students_df, training_course)
+    target_vector = np.zeros(shape=(len(fall_2021_students_df), 1))
+
+    for i in range(0, len(fall_2021_students_df)):
+        if str(fall_2021_students_df.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
+            target_vector[i] = 1
 
     y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
+
+    cm = confusion_matrix(target_vector, y_pred)
+
+    tn, fp, fn, tp = cm.ravel()
+
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+
+    print("Sensitivity:", sensitivity)
+    print("Specificity:", specificity)
 
     correct_predictions = 0
     type_1_errors = 0
@@ -336,7 +367,7 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     for i in range(0, len(target_vector)):
         if target_vector[i] == 1:
-            print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
+            print(fall_2021_students_df.iloc[i].to_frame().T.to_string()) # student in course
         correct_predictions += target_vector[i] and y_pred[i] # correct predictions
         if target_vector[i] == 0 and y_pred[i] == 1:
             type_1_errors += 1
@@ -366,10 +397,10 @@ def main():
 
     all_student_data = pd.read_pickle("class_data.pickle", compression="xz")
 
-   # create_rf_model_for_course(all_student_data, "ENGL", "1101")
-   #  create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
+    # create_rf_model_for_course(all_student_data, "ENGL", "1101")
+    # create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
     create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
-    # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
+    #create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
 
 
 if __name__ == "__main__":
