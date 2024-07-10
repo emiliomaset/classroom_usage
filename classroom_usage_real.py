@@ -1,7 +1,9 @@
 import datetime
+import math
 import sys
 import numpy
 from sklearn.ensemble import RandomForestClassifier
+from imblearn.ensemble import BalancedRandomForestClassifier
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
@@ -10,12 +12,11 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, recall_score
 from sklearn.preprocessing import OrdinalEncoder
 import warnings
-
-
 warnings.filterwarnings("ignore")
-numpy.set_printoptions(threshold=sys.maxsize)
 
-sns.set(font_scale=1.5)
+numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
+
+sns.set(font_scale=1.5) #set graph font size
 
 pd.options.mode.chained_assignment = None
 
@@ -278,7 +279,8 @@ def preprocess_student_data(student_data):
                  "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
                  "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
                  "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days",
-                  "GS Age at Enrollment", "GS Residency", "GS Student Type"],
+                  "GS Age at Enrollment", "GS Residency", "GS Student Type",
+                               "First Generation Indicator", "Pell Eligible", "Sex", "GS Multiple Major Ind"],
         inplace=True)
 
     student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
@@ -312,7 +314,7 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
     features_matrix = pd.DataFrame(students_in_training_course)
     features_matrix["Enrolled in Course Next Year"] = target_vector
 
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 3))
+    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 1)) # make so only non-students are sampled?
 
     return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
 
@@ -360,8 +362,6 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     print("Specificity:", specificity)
 
     correct_predictions = 0
-    type_1_errors = 0
-    type_2_errors = 0
 
     print(f"\n\nstudents in {course_subject} {course_number}")
 
@@ -369,10 +369,6 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
         if target_vector[i] == 1:
             print(fall_2021_students_df.iloc[i].to_frame().T.to_string()) # student in course
         correct_predictions += target_vector[i] and y_pred[i] # correct predictions
-        if target_vector[i] == 0 and y_pred[i] == 1:
-            type_1_errors += 1
-        if target_vector[i] == 1 and y_pred[i] == 0:
-            type_2_errors += 1
 
     print(f"\nstudents predicted to be in {course_subject} {course_number}")
 
@@ -380,8 +376,7 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
         if y_pred[i] == 1:
             print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
 
-
-    print(f"{int(sum(target_vector))} students from 2021 took the course in 2022. {int(correct_predictions)} predictions were correct. there were {type_1_errors} false positives and {type_2_errors} false negatives.")
+    print(f"{int(sum(target_vector))} students from 2021 took the course in 2022. {int(correct_predictions)} predictions were correct. there were {fp} false positives and {fn} false negatives.")
 
 def main():
     # classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
@@ -401,7 +396,8 @@ def main():
     # create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
     # create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
     # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
-    create_rf_model_for_course(all_student_data, "COMP", "2270")
+    #create_rf_model_for_course(all_student_data, "COMP", "2270")
+    create_rf_model_for_course(all_student_data, "BSBA", "2209")
 
 
 if __name__ == "__main__":
