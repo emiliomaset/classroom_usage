@@ -4,6 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from imblearn.ensemble import BalancedRandomForestClassifier
 from sklearn.linear_model import LinearRegression
 import numpy as np
+from numpy import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -43,33 +44,56 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
 
     return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
 
+def create_features_matrix_for_rf_model(year_data):
+    year_data.reset_index(inplace=True, drop=True)  # do i need?
+    year_data.drop(columns=year_data.iloc[:, :5], inplace=True)
+    year_data = year_data.iloc[:, :-6]
+
+    return year_data
+
+def create_target_vector_for_rf_model(student_year_data, student_next_year_data, course_subject, course_number):
+    target_vector = np.zeros(shape=(len(student_year_data), 1))
+
+    for i in range(0, len(student_year_data)):
+        if student_year_data.iloc[i]["SPRIDEN_PIDM"] in student_next_year_data["SPRIDEN_PIDM"].values:
+            if len(student_next_year_data[student_next_year_data["SPRIDEN_PIDM"] == student_year_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) == 0:
+                target_vector[i] = 0
+
+            else:
+                target_vector[i] = int(student_next_year_data[student_next_year_data["SPRIDEN_PIDM"] == student_year_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
+
+        else:
+            target_vector[i] = 0
+
+    return target_vector
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
-    fall_2021_students_df = all_student_data.loc[
+    fall_2020_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2020-2021")]
-
-    fall_2021_students_df = preprocess_student_data(fall_2021_students_df)
-
-    target_vector = fall_2021_students_df[course_subject + "_" + course_number]
-
-    rf_model = RandomForestClassifier()
-    fall_2021_students_df.drop(columns=fall_2021_students_df.iloc[:, :6], inplace=True)
-    fall_2021_students_df = fall_2021_students_df.iloc[:, :-6]
-    rf_model.fit(fall_2021_students_df, target_vector)
 
     fall_2021_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
 
-    fall_2021_students_df = preprocess_student_data(fall_2021_students_df)
+    target_vector = create_target_vector_for_rf_model(fall_2020_students_df, fall_2021_students_df, course_subject, course_number)
+    fall_2020_students_df = create_features_matrix_for_rf_model(fall_2020_students_df)
 
+    #random.seed(1222)
+    rf_model = BalancedRandomForestClassifier(class_weight='balanced_subsample')
+    rf_model.fit(fall_2020_students_df, target_vector)
 
-    target_vector = np.zeros(shape=(len(fall_2021_students_df), 1))
+    fall_2022_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2022-2023")]
 
-    # for i in range(0, len(fall_2021_students_df)):
-    #     if str(fall_2021_students_df.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-    #         target_vector[i] = 1
+    target_vector = create_target_vector_for_rf_model(fall_2021_students_df, fall_2022_students_df, course_subject, course_number)
+    fall_2021_students_df = create_features_matrix_for_rf_model(fall_2021_students_df)
 
-    y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
+    y_pred = rf_model.predict(fall_2021_students_df)
+
+    # threshold = 0.7
+    #
+    # predicted_proba = rf_model.predict_proba(fall_2021_students_df)
+    # print(predicted_proba)
+    # predicted = (predicted_proba[:, 1] >= threshold).astype('int')
 
     cm = confusion_matrix(target_vector, y_pred)
 
@@ -80,6 +104,10 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     print("Sensitivity:", sensitivity)
     print("Specificity:", specificity)
+
+    fall_2021_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
+    fall_2021_students_df.reset_index(inplace=True, drop=True)
 
     correct_predictions = 0
 
