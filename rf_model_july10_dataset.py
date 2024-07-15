@@ -45,23 +45,23 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
 
     return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
 
-def create_features_matrix_for_rf_model(year_data):
-    year_data.reset_index(inplace=True, drop=True)  # do i need?
-    year_data.drop(columns=year_data.iloc[:, :5], inplace=True)
-    year_data = year_data.iloc[:, :-6]
+def create_features_matrix_for_rf_model(semester_data):
+    semester_data.reset_index(inplace=True, drop=True)  # do i need?
+    semester_data.drop(columns=semester_data.iloc[:, :5], inplace=True)
+    semester_data = semester_data.iloc[:, :-6]
 
-    return year_data
+    return semester_data
 
-def create_target_vector_for_rf_model(student_year_data, student_next_year_data, course_subject, course_number):
-    target_vector = np.zeros(shape=(len(student_year_data), 1))
+def create_target_vector_for_rf_model(student_semester_data, student_next_semester_data, course_subject, course_number):
+    target_vector = np.zeros(shape=(len(student_semester_data), 1))
 
-    for i in range(0, len(student_year_data)):
-        if student_year_data.iloc[i]["SPRIDEN_PIDM"] in student_next_year_data["SPRIDEN_PIDM"].values:
-            if len(student_next_year_data[student_next_year_data["SPRIDEN_PIDM"] == student_year_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) == 0:
+    for i in range(0, len(student_semester_data)):
+        if student_semester_data.iloc[i]["SPRIDEN_PIDM"] in student_next_semester_data["SPRIDEN_PIDM"].values:
+            if len(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) == 0:
                 target_vector[i] = 0
 
             else:
-                target_vector[i] = int(student_next_year_data[student_next_year_data["SPRIDEN_PIDM"] == student_year_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
+                target_vector[i] = int(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
 
         else:
             target_vector[i] = 0
@@ -69,35 +69,14 @@ def create_target_vector_for_rf_model(student_year_data, student_next_year_data,
     return target_vector
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
-    fall_2020_students_df = all_student_data.loc[
-        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2020-2021")]
+    spring_2021_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2020-2021")]
 
     fall_2021_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
 
-    target_vector = create_target_vector_for_rf_model(fall_2020_students_df, fall_2021_students_df, course_subject, course_number)
-    fall_2020_students_df = create_features_matrix_for_rf_model(fall_2020_students_df)
-
-    zero_count = 0
-    one_count = 0
-
-    for i in range(0, len(target_vector)):
-        if target_vector[i] == 1:
-            one_count+=1
-        else:
-            zero_count+=1
-
-    print(zero_count, one_count)
-
-    random.seed(1234)
-    rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234))
-    rf_model.fit(fall_2020_students_df, target_vector)
-
-    fall_2022_students_df = all_student_data.loc[
-        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2022-2023")]
-
-    target_vector = create_target_vector_for_rf_model(fall_2021_students_df, fall_2022_students_df, course_subject, course_number)
-    fall_2021_students_df = create_features_matrix_for_rf_model(fall_2021_students_df)
+    target_vector = create_target_vector_for_rf_model(spring_2021_students_df, fall_2021_students_df, course_subject, course_number)
+    spring_2021_students_df = create_features_matrix_for_rf_model(spring_2021_students_df)
 
     zero_count = 0
     one_count = 0
@@ -110,9 +89,33 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     print(zero_count, one_count)
 
-    y_pred = rf_model.predict(fall_2021_students_df)
+    random.seed(1234)
+    rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample")
+    rf_model.fit(spring_2021_students_df, target_vector)
 
+    spring_2022_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2021-2022")]
 
+    fall_2022_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2022-2023")]
+
+    target_vector = create_target_vector_for_rf_model(spring_2022_students_df, fall_2022_students_df, course_subject, course_number)
+    spring_2022_students_df = create_features_matrix_for_rf_model(spring_2022_students_df)
+
+    print(len(spring_2022_students_df))
+
+    zero_count = 0
+    one_count = 0
+
+    for i in range(0, len(target_vector)):
+        if target_vector[i] == 1:
+            one_count += 1
+        else:
+            zero_count += 1
+
+    print(zero_count, one_count)
+
+    y_pred = rf_model.predict(spring_2022_students_df)
 
     # threshold = 0.7
     #
@@ -127,33 +130,26 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     plt.show()
 
     tn, fp, fn, tp = cm.ravel()
-
     sensitivity = tp / (tp + fn)
     specificity = tn / (tn + fp)
-
     print("Sensitivity:", sensitivity)
     print("Specificity:", specificity)
 
-    fall_2021_students_df = all_student_data.loc[
-        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
-    fall_2021_students_df.reset_index(inplace=True, drop=True)
-
-    correct_predictions = 0
+    spring_2022_students_df = all_student_data.loc[
+        (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2021-2022")]
+    spring_2022_students_df.reset_index(inplace=True, drop=True)
 
     print(f"\n\nstudents in {course_subject} {course_number}")
-
     for i in range(0, len(target_vector)):
         if target_vector[i] == 1:
-            print(fall_2021_students_df.iloc[i].to_frame().T.to_string()) # student in course
-        correct_predictions += target_vector[i] and y_pred[i] # correct predictions
+            print(spring_2022_students_df.iloc[i].to_frame().T.to_string()) # student in course
 
     print(f"\nstudents predicted to be in {course_subject} {course_number}")
-
     for i in range(0, len(target_vector)):
         if y_pred[i] == 1:
-            print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
+            print(spring_2022_students_df.iloc[i].to_frame().T.to_string())
 
-    print(f"{int(sum(target_vector))} students from 2021 took the course in 2022. {int(correct_predictions)} predictions were correct. there were {fp} false positives and {fn} false negatives.")
+    print(f"{int(sum(target_vector))} students from spring 2022 took the course in fall 2022. {tp} predictions were correct. there were {fp} false positives and {fn} false negatives.")
 
 def main():
     # student_data = pd.read_excel("July 10 Dataset.xlsx")
