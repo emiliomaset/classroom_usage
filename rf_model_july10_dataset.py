@@ -7,6 +7,7 @@ import numpy as np
 from numpy import random
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn import metrics
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, recall_score
 from sklearn.preprocessing import OrdinalEncoder
@@ -77,8 +78,19 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     target_vector = create_target_vector_for_rf_model(fall_2020_students_df, fall_2021_students_df, course_subject, course_number)
     fall_2020_students_df = create_features_matrix_for_rf_model(fall_2020_students_df)
 
-    #random.seed(1222)
-    rf_model = BalancedRandomForestClassifier(class_weight='balanced_subsample')
+    zero_count = 0
+    one_count = 0
+
+    for i in range(0, len(target_vector)):
+        if target_vector[i] == 1:
+            one_count+=1
+        else:
+            zero_count+=1
+
+    print(zero_count, one_count)
+
+    random.seed(1234)
+    rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234))
     rf_model.fit(fall_2020_students_df, target_vector)
 
     fall_2022_students_df = all_student_data.loc[
@@ -87,7 +99,20 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     target_vector = create_target_vector_for_rf_model(fall_2021_students_df, fall_2022_students_df, course_subject, course_number)
     fall_2021_students_df = create_features_matrix_for_rf_model(fall_2021_students_df)
 
+    zero_count = 0
+    one_count = 0
+
+    for i in range(0, len(target_vector)):
+        if target_vector[i] == 1:
+            one_count += 1
+        else:
+            zero_count += 1
+
+    print(zero_count, one_count)
+
     y_pred = rf_model.predict(fall_2021_students_df)
+
+
 
     # threshold = 0.7
     #
@@ -96,6 +121,10 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     # predicted = (predicted_proba[:, 1] >= threshold).astype('int')
 
     cm = confusion_matrix(target_vector, y_pred)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1], )
+    cm_display.plot()
+    cm_display.figure_.set()
+    plt.show()
 
     tn, fp, fn, tp = cm.ravel()
 

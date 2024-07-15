@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, recall_score
+from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import OrdinalEncoder
 import warnings
 warnings.filterwarnings("ignore")
@@ -314,10 +314,9 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
     features_matrix = pd.DataFrame(students_in_training_course)
     features_matrix["Enrolled in Course Next Year"] = target_vector
 
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 1)) # make so only non-students are sampled?
+    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix))) # make so only non-students are sampled?
 
     return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
-
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
     fall_2020_students_df = all_student_data.loc[
@@ -396,8 +395,8 @@ def main():
     # create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
     # create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
     # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
-    #create_rf_model_for_course(all_student_data, "COMP", "2270")
-    create_rf_model_for_course(all_student_data, "BSBA", "2209")
+    # create_rf_model_for_course(all_student_data, "COMP", "2270") # data structures
+    # create_rf_model_for_course(all_student_data, "BSBA", "2209")
 
 
 if __name__ == "__main__":
