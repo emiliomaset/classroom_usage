@@ -1,5 +1,7 @@
 import numpy
 import sys
+
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
 from imblearn.ensemble import BalancedRandomForestClassifier
 from sklearn.linear_model import LinearRegression
@@ -10,15 +12,18 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, recall_score
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 import warnings
-numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
+
+numpy.set_printoptions(threshold=sys.maxsize)  #print entire numpy arrays
+
 
 def preprocess_student_data(student_data):
     #student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
     student_data.reset_index(inplace=True, drop=True)
 
     return student_data
+
 
 def create_features_matrix_and_target_vector_for_rf_model(student_data, training_course):
     indices_of_students_in_training_course = []
@@ -41,32 +46,57 @@ def create_features_matrix_and_target_vector_for_rf_model(student_data, training
     features_matrix = pd.DataFrame(students_in_training_course)
     features_matrix["Enrolled in Course Next Year"] = target_vector
 
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 1)) # make so only non-students are sampled?
+    features_matrix = features_matrix._append(
+        student_data.sample(n=len(features_matrix) * 1))  # make so only non-students are sampled?
 
-    return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
+    return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(
+        features_matrix["Enrolled in Course Next Year"])
+
 
 def create_features_matrix_for_rf_model(semester_data):
     semester_data.reset_index(inplace=True, drop=True)  # do i need?
     semester_data.drop(columns=semester_data.iloc[:, :5], inplace=True)
     semester_data = semester_data.iloc[:, :-6]
 
+    pca_features = ['PROG_RETENTION_RATE','COHORT_SIZE','AGE','TERM_PELL_PAID_AMT','TERM_PROMISE_PAID_AMT','AY_SCHL_PAID_AMT','ONLINE_COURSES_TAKEN','HYBRID_COURSES_TAKEN','FTF_COURSES_TAKEN','TERMS_ATTENDED','PAST_TERM_HOURS_ENROLLED','GRAD_LIKLIHOOD','HOURS_EARNED_TOWARDS_DEGREE','MAJR_CHANGES','ACADEMIC_STANDING','AMOUNT_PAID_OOP','AVG_SCHEDULE_DFW_RATE','MAX_SCHEDULE_DFW_RATE','STDV_SCHEDULE_DFW_RATE']
+    x = semester_data.loc[:, pca_features].values
+    x = StandardScaler().fit_transform(x)
+
+    semester_data.drop(columns=pca_features, inplace=True)
+
+    pca = PCA(0.95)
+    principal_components = pca.fit_transform(x)
+
+    principal_components_names = []
+    for i in range(0, len(principal_components[0])):
+        principal_components_names.append("principal_component_" + str(i + 1))
+
+    principal_comps_df = pd.DataFrame(data= principal_components, columns=principal_components_names)
+    semester_data = pd.concat([semester_data, principal_comps_df], axis=1)
+
     return semester_data
+
 
 def create_target_vector_for_rf_model(student_semester_data, student_next_semester_data, course_subject, course_number):
     target_vector = np.zeros(shape=(len(student_semester_data), 1))
 
     for i in range(0, len(student_semester_data)):
         if student_semester_data.iloc[i]["SPRIDEN_PIDM"] in student_next_semester_data["SPRIDEN_PIDM"].values:
-            if len(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) == 0:
+            if len(student_next_semester_data[
+                       student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][
+                       course_subject + "_" + course_number].values) == 0:
                 target_vector[i] = 0
 
             else:
-                target_vector[i] = int(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
+                target_vector[i] = int(student_next_semester_data[
+                                           student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i][
+                                               "SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
 
         else:
             target_vector[i] = 0
 
     return target_vector
+
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
     spring_2021_students_df = all_student_data.loc[
@@ -75,7 +105,8 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     fall_2021_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
 
-    target_vector = create_target_vector_for_rf_model(spring_2021_students_df, fall_2021_students_df, course_subject, course_number)
+    target_vector = create_target_vector_for_rf_model(spring_2021_students_df, fall_2021_students_df, course_subject,
+                                                      course_number)
     spring_2021_students_df = create_features_matrix_for_rf_model(spring_2021_students_df)
 
     zero_count = 0
@@ -89,6 +120,8 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     print(zero_count, one_count)
 
+    print(spring_2021_students_df.head().to_string())
+
     random.seed(1234)
     rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample")
     rf_model.fit(spring_2021_students_df, target_vector)
@@ -99,7 +132,8 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     fall_2022_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2022-2023")]
 
-    target_vector = create_target_vector_for_rf_model(spring_2022_students_df, fall_2022_students_df, course_subject, course_number)
+    target_vector = create_target_vector_for_rf_model(spring_2022_students_df, fall_2022_students_df, course_subject,
+                                                      course_number)
     spring_2022_students_df = create_features_matrix_for_rf_model(spring_2022_students_df)
 
     print(len(spring_2022_students_df))
@@ -142,14 +176,16 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     print(f"\n\nstudents in {course_subject} {course_number}")
     for i in range(0, len(target_vector)):
         if target_vector[i] == 1:
-            print(spring_2022_students_df.iloc[i].to_frame().T.to_string()) # student in course
+            print(spring_2022_students_df.iloc[i].to_frame().T.to_string())  # student in course
 
     print(f"\nstudents predicted to be in {course_subject} {course_number}")
     for i in range(0, len(target_vector)):
         if y_pred[i] == 1:
             print(spring_2022_students_df.iloc[i].to_frame().T.to_string())
 
-    print(f"{int(sum(target_vector))} students from spring 2022 took the course in fall 2022. {tp} predictions were correct. there were {fp} false positives and {fn} false negatives.")
+    print(
+        f"{int(sum(target_vector))} students from spring 2022 took the course in fall 2022. {tp} predictions were correct. there were {fp} false positives and {fn} false negatives.")
+
 
 def main():
     # student_data = pd.read_excel("July 10 Dataset.xlsx")
@@ -158,6 +194,7 @@ def main():
     student_data = pd.read_pickle("July_10.pkl")
 
     create_rf_model_for_course(student_data, "BSBA", "2209")
+
 
 if __name__ == "__main__":
     main()
