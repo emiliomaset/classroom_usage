@@ -2,72 +2,47 @@ import numpy
 import sys
 from sklearn.ensemble import RandomForestClassifier
 from imblearn.ensemble import BalancedRandomForestClassifier
-from sklearn.linear_model import LinearRegression
 import numpy as np
 from numpy import random
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import metrics
-import seaborn as sns
 from sklearn.metrics import confusion_matrix, recall_score
-from sklearn.preprocessing import OrdinalEncoder
-import warnings
-from sklearn import tree
 numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
 
-def preprocess_student_data(student_data):
-    #student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
-    student_data.reset_index(inplace=True, drop=True)
+def create_target_vector_for_rf_model(student_semester_data, student_next_semester_data, course_subject, course_number):
+    """
 
-    return student_data
+    :param student_semester_data: complete df of student data for a semester (have not turned it into a feature matrix yet)
+    :param student_next_semester_data: complete df of student data for the semester that follows the semester of student_semester_data
+    :param course_subject: the subject of the course we are predicting students to be in or not
+    :param course_number: the number of the course we are predicting students to be in or not
+    :return: the target vector where 1 indicates the student is in the given course the following semester or 0 if they are not
+    """
+    target_vector = np.zeros(shape=(len(student_semester_data), 1))
 
-def create_features_matrix_and_target_vector_for_rf_model(student_data, training_course):
-    indices_of_students_in_training_course = []
+    for i in range(0, len(student_semester_data)):
+        if student_semester_data.iloc[i]["SPRIDEN_PIDM"] in student_next_semester_data["SPRIDEN_PIDM"].values:  # if student attended FSU the next semester
+            target_vector[i] = int(student_next_semester_data[
+                                           student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i][
+                                               "SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) # copy value from column that indicates student enrollment in course
 
-    is_in_course = np.zeros(shape=(len(student_data), 1))
+        else:  # if student didn't attend FSU the next semester, they didn't take the course
+            target_vector[i] = 0
 
-    for i in range(0, len(student_data)):
-        if str(student_data.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-            indices_of_students_in_training_course.append(i)
-            is_in_course[i] = 1
-
-    student_data["Enrolled in Course Next Year"] = is_in_course
-
-    students_in_training_course = []
-    for i in indices_of_students_in_training_course:
-        students_in_training_course.append(student_data.iloc[i])
-
-    target_vector = np.ones(shape=(len(students_in_training_course), 1))
-
-    features_matrix = pd.DataFrame(students_in_training_course)
-    features_matrix["Enrolled in Course Next Year"] = target_vector
-
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix) * 1)) # make so only non-students are sampled?
-
-    return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
+    return target_vector
 
 def create_features_matrix_for_rf_model(semester_data):
-    semester_data.reset_index(inplace=True, drop=True)  # do i need?
+    """
+
+    :param semester_data: semester of students whose information we are using to create a features matrix for random forest model
+    :return: student info feature matrix
+    """
     semester_data.drop(columns=semester_data.iloc[:, :5], inplace=True)
     semester_data = semester_data.iloc[:, :-6]
 
     return semester_data
 
-def create_target_vector_for_rf_model(student_semester_data, student_next_semester_data, course_subject, course_number):
-    target_vector = np.zeros(shape=(len(student_semester_data), 1))
-
-    for i in range(0, len(student_semester_data)):
-        if student_semester_data.iloc[i]["SPRIDEN_PIDM"] in student_next_semester_data["SPRIDEN_PIDM"].values:
-            if len(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values) == 0:
-                target_vector[i] = 0
-
-            else:
-                target_vector[i] = int(student_next_semester_data[student_next_semester_data["SPRIDEN_PIDM"] == student_semester_data.iloc[i]["SPRIDEN_PIDM"]][course_subject + "_" + course_number].values)
-
-        else:
-            target_vector[i] = 0
-
-    return target_vector
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
     spring_2021_students_df = all_student_data.loc[
@@ -79,22 +54,11 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     target_vector = create_target_vector_for_rf_model(spring_2021_students_df, fall_2021_students_df, course_subject, course_number)
     spring_2021_students_df = create_features_matrix_for_rf_model(spring_2021_students_df)
 
-    zero_count = 0
-    one_count = 0
-
-    for i in range(0, len(target_vector)):
-        if target_vector[i] == 1:
-            one_count += 1
-        else:
-            zero_count += 1
-
-    print(zero_count, one_count)
-
-    random.seed(1234)
-    rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample")
+    random.seed(1234) #create random seed to allow replicability of model
+    rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample") # BalancedRandomForest() provides each tree with a balanced subsample
+                                                                                                                 # where there are a balanced amount of majority and minority class observations
+                                                                                                                 # class_weight="balanced_subsample" adjusts weights of the majority/minority classes
     rf_model.fit(spring_2021_students_df, target_vector)
-
-    tree.plot_tree(rf_model);
 
     spring_2022_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2021-2022")]
@@ -105,43 +69,36 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     target_vector = create_target_vector_for_rf_model(spring_2022_students_df, fall_2022_students_df, course_subject, course_number)
     spring_2022_students_df = create_features_matrix_for_rf_model(spring_2022_students_df)
 
-
-    zero_count = 0
-    one_count = 0
-
-    for i in range(0, len(target_vector)):
-        if target_vector[i] == 1:
-            one_count += 1
-        else:
-            zero_count += 1
-
-    print(zero_count, one_count)
-
     y_pred = rf_model.predict(spring_2022_students_df)
 
-    # threshold = 0.7
-    #
-    # predicted_proba = rf_model.predict_proba(fall_2021_students_df)
-    # print(predicted_proba)
-    # predicted = (predicted_proba[:, 1] >= threshold).astype('int')
+    fpr, tpr, threshold = metrics.roc_curve(y_pred, target_vector) # the ROC curve indicates performance of the model at various probabalistic thresholds
+    roc_auc = metrics.auc(fpr, tpr)
+    plt.title('ROC Curve')
+    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
 
-    cm = confusion_matrix(target_vector, y_pred)
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1], )
+    cm = confusion_matrix(target_vector, y_pred) # the confusion matrix of a classifcation model shows the amount of
+                                                 # true positives, false positives, true negatives, and false negatives
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
     cm_display.plot()
     cm_display.figure_.set()
     plt.show()
+    tn, fp, fn, tp = cm.ravel() # obtain true positives and others from confusion matrix
+    precision = tp / (tp + fp) # precision asks: out of all my predictions, how accurate have I been in predicting the positive class?
+    recall = tp / (tp + fn) # recall asks out of all the positive cases in the sample, how many of these have been correctly identified?
+    print("precision:", precision)
+    print("recall:", recall)
 
-    tn, fp, fn, tp = cm.ravel()
-    sensitivity = tp / (tp + fn)
-    specificity = tn / (tn + fp)
-    print("Sensitivity:", sensitivity)
-    print("Specificity:", specificity)
-
-    spring_2022_students_df = all_student_data.loc[
+    spring_2022_students_df = all_student_data.loc[ # create df again so that all columns are there in upcoming prints
         (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2021-2022")]
-    spring_2022_students_df.reset_index(inplace=True, drop=True)
 
-    print(f"\n\nstudents in {course_subject} {course_number}")
+    print(f"\n\nstudents in {course_subject} {course_number}") #students from the previous semester that are actually in the course the next semester
     for i in range(0, len(target_vector)):
         if target_vector[i] == 1:
             print(spring_2022_students_df.iloc[i].to_frame().T.to_string()) # student in course
