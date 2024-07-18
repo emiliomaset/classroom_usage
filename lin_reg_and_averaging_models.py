@@ -148,7 +148,8 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
             X.drop(X.head(len(X) - 3).index, inplace=True)
             X["Years From Start"] = 0, 1, 2
 
-    model = LinearRegression(fit_intercept=True)
+    model = LinearRegression(fit_intercept=True) # fit intercept true so that the y-intercept is not at (0,0).
+                                                 # i believe this makes the equation more accurate
     model.fit(X, y)
 
     print(r2_score(y_true=y, y_pred=model.predict(X)))
@@ -206,7 +207,14 @@ def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
     return [year_and_ratio_df['Enrollment Ratio'].sum() / len(year_and_ratio_df["Enrollment Ratio"])], [index_to_return]
 
 
-def graph_lin_reg(model, year_and_ratio_df, model_course, X):
+def graph_lin_reg(year_and_ratio_df, model_course):
+    """
+
+
+    :param year_and_ratio_df:
+    :param model_course:
+    :return:
+    """
 
     year_and_ratio_df["Academic Year"] = year_and_ratio_df["Academic Year"].map(
         datetime.datetime.toordinal)  # for graphing
@@ -226,145 +234,6 @@ def graph_lin_reg(model, year_and_ratio_df, model_course, X):
     plt.gcf().subplots_adjust(bottom=0.13)
 
     plt.show()
-
-
-def plot_a_class_section_frequency(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
-    class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (
-            classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
-
-    sections_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
-                                                 "Academic Term"])[["CRS Section Number"]].nunique()
-
-    graph = sns.catplot(sections_counts_by_class, x="Academic Year", y=sections_counts_by_class.values.flatten(),
-                        aspect=4.0, kind="bar",
-                        hue='Academic Term')
-
-    graph.fig.subplots_adjust(top=.94)
-
-    graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Section Frequency by Year and Term")
-    plt.show()
-
-
-def plot_a_class_enrollment(classes_data, CRS_Subject_of_class, CRS_Course_Number_of_class):
-    class_df = classes_data.loc[(classes_data["CRS Subject"] == CRS_Subject_of_class) & (
-            classes_data["CRS Course Number"] == CRS_Course_Number_of_class)]
-
-    enrollment_counts_by_class = class_df.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
-                                                   "Academic Term"])[["CRS Section Number"]].count()
-
-    graph = sns.catplot(enrollment_counts_by_class, x="Academic Year", y=enrollment_counts_by_class.values.flatten(),
-                        aspect=4.0, kind="bar",
-                        hue='Academic Term')
-
-    graph.fig.subplots_adjust(top=.94)
-
-    graph.set(title=CRS_Subject_of_class + " " + CRS_Course_Number_of_class + " Enrollment by Year and Term")
-    plt.show()
-
-def preprocess_student_data(student_data):
-    student_data.drop(columns=["SFRSTCR_TERM_CODE", "CRS Subject", "CRS CRN", "CRS Course Number", "CRS Course Level",
-                 "CRS Section Number",
-                 "CRS Campus", "CRS Course Title", "CRS Primary Instructor PIDM", "CRS Grade", "CRS Mid Term Grade",
-                 "CRS Schedule Desc", "REG Registered Hours", "REG Registration Status Code", "SGBSTDN_MAJR_CODE_1",
-                 "MEET Building", "MEET Room Number", "MEET Begin Time", "MEET End Time", "MEET Meeting Days",
-                  "GS Age at Enrollment", "GS Residency", "GS Student Type",
-                               "First Generation Indicator", "Pell Eligible", "Sex", "GS Multiple Major Ind"],
-        inplace=True)
-
-    student_data = student_data.drop_duplicates(subset=['SPRIDEN_PIDM'])
-    student_data.dropna(inplace=True)
-    ord_enc = OrdinalEncoder()
-    for columns in student_data.columns[3:]:
-        student_data[columns] = ord_enc.fit_transform(student_data[[columns]])
-
-    student_data.reset_index(inplace=True, drop=True)
-
-    return student_data
-
-def create_features_matrix_and_target_vector_for_rf_model(student_data, training_course):
-    indices_of_students_in_training_course = []
-
-    is_in_course = np.zeros(shape=(len(student_data), 1))
-
-    for i in range(0, len(student_data)):
-        if str(student_data.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-            indices_of_students_in_training_course.append(i)
-            is_in_course[i] = 1
-
-    student_data["Enrolled in Course Next Year"] = is_in_course
-
-    students_in_training_course = []
-    for i in indices_of_students_in_training_course:
-        students_in_training_course.append(student_data.iloc[i])
-
-    target_vector = np.ones(shape=(len(students_in_training_course), 1))
-
-    features_matrix = pd.DataFrame(students_in_training_course)
-    features_matrix["Enrolled in Course Next Year"] = target_vector
-
-    features_matrix = features_matrix._append(student_data.sample(n=len(features_matrix))) # make so only non-students are sampled?
-
-    return features_matrix.drop(columns="Enrolled in Course Next Year"), np.array(features_matrix["Enrolled in Course Next Year"])
-
-def create_rf_model_for_course(all_student_data, course_subject, course_number):
-    fall_2020_students_df = all_student_data.loc[
-        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2020-2021")]
-
-    fall_2020_students_df = preprocess_student_data(fall_2020_students_df)
-
-    training_course = all_student_data.loc[
-        (all_student_data["Academic Year"] == "2021-2022") & (all_student_data["Academic Term"] == "Fall")
-        & (all_student_data["CRS Subject"] == course_subject) & (all_student_data["CRS Course Number"] == course_number)]
-
-    fall_2020_students_df, target_vector = create_features_matrix_and_target_vector_for_rf_model(fall_2020_students_df, training_course)
-
-    rf_model = RandomForestClassifier()
-    rf_model.fit(fall_2020_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]), target_vector)
-
-    fall_2021_students_df = all_student_data.loc[
-        (all_student_data["Academic Term"] == "Fall") & (all_student_data["Academic Year"] == "2021-2022")]
-
-    fall_2021_students_df = preprocess_student_data(fall_2021_students_df)
-
-    training_course = all_student_data.loc[
-        (all_student_data["Academic Year"] == "2022-2023") & (all_student_data["Academic Term"] == "Fall")
-        & (all_student_data["CRS Subject"] == course_subject) & (all_student_data["CRS Course Number"] == course_number)]
-
-    target_vector = np.zeros(shape=(len(fall_2021_students_df), 1))
-
-    for i in range(0, len(fall_2021_students_df)):
-        if str(fall_2021_students_df.iloc[i]["SPRIDEN_PIDM"]) in training_course["SPRIDEN_PIDM"].to_string():
-            target_vector[i] = 1
-
-    y_pred = rf_model.predict(fall_2021_students_df.drop(columns=["Academic Year", "Academic Term", "SPRIDEN_PIDM"]))
-
-    cm = confusion_matrix(target_vector, y_pred)
-
-    tn, fp, fn, tp = cm.ravel()
-
-    sensitivity = tp / (tp + fn)
-    specificity = tn / (tn + fp)
-
-    print("Sensitivity:", sensitivity)
-    print("Specificity:", specificity)
-
-    correct_predictions = 0
-
-    print(f"\n\nstudents in {course_subject} {course_number}")
-
-    for i in range(0, len(target_vector)):
-        if target_vector[i] == 1:
-            print(fall_2021_students_df.iloc[i].to_frame().T.to_string()) # student in course
-        correct_predictions += target_vector[i] and y_pred[i] # correct predictions
-
-    print(f"\nstudents predicted to be in {course_subject} {course_number}")
-
-    for i in range(0, len(target_vector)):
-        if y_pred[i] == 1:
-            print(fall_2021_students_df.iloc[i].to_frame().T.to_string())
-
-    print(f"{int(sum(target_vector))} students from 2021 took the course in 2022. {int(correct_predictions)} predictions were correct. there were {fp} false positives and {fn} false negatives.")
-
 def main():
     # classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
     # classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")

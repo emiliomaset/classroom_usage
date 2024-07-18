@@ -8,10 +8,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix, recall_score
+from sklearn.tree import export_graphviz
+
+from sklearn import tree
+
 numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
 
 def create_target_vector_for_rf_model(student_semester_data, student_next_semester_data, course_subject, course_number):
     """
+
+    creating a target vector (0 if the student is not in the course and 1 if the student is) for rf model
 
     :param student_semester_data: complete df of student data for a semester (have not turned it into a feature matrix yet)
     :param student_next_semester_data: complete df of student data for the semester that follows the semester of student_semester_data
@@ -35,6 +41,8 @@ def create_target_vector_for_rf_model(student_semester_data, student_next_semest
 def create_features_matrix_for_rf_model(semester_data):
     """
 
+    creating features matrix of student data for rf model
+
     :param semester_data: semester of students whose information we are using to create a features matrix for random forest model
     :return: student info feature matrix
     """
@@ -45,6 +53,17 @@ def create_features_matrix_for_rf_model(semester_data):
 
 
 def create_rf_model_for_course(all_student_data, course_subject, course_number):
+    """
+
+    creating a random forest (rf) model using spring student data to predict whether a student is in a given course
+    in a fall semester
+
+    :param all_student_data: df of all student data obtained from July 10 Dataset.xlsx
+    :param course_subject: course subject of course we are predicting enrollment for
+    :param course_number: course number of course we are predicting enrollment for
+    :return: N/A
+    """
+
     spring_2021_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2020-2021")]
 
@@ -57,8 +76,12 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     random.seed(1234) #create random seed to allow replicability of model
     rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample") # BalancedRandomForest() provides each tree with a balanced subsample
                                                                                                                  # where there are a balanced amount of majority and minority class observations
-                                                                                                                 # class_weight="balanced_subsample" adjusts weights of the majority/minority classes
+    # class_weight="balanced_subsample" adjusts weights of the majority/minority classes
+    print(spring_2021_students_df.columns)
+    target_vector_columns = pd.Index(["0","1"])
     rf_model.fit(spring_2021_students_df, target_vector)
+    tree.plot_tree(rf_model.estimators_[0], feature_names=spring_2021_students_df.columns, class_names=target_vector_columns, filled=True)
+    plt.show()
 
     spring_2022_students_df = all_student_data.loc[
         (all_student_data["Academic Term"] == "Spring") & (all_student_data["Academic Year"] == "2021-2022")]
