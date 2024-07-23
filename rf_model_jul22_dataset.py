@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix, recall_score
 from sklearn.tree import export_graphviz
-
 from sklearn import tree
 
 numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
@@ -46,7 +45,7 @@ def create_features_matrix_for_rf_model(semester_data):
     :param semester_data: semester of students whose information we are using to create a features matrix for random forest model
     :return: student info feature matrix
     """
-    semester_data.drop(columns=semester_data.iloc[:, :5], inplace=True)
+    semester_data.drop(columns=semester_data.iloc[:, :3], inplace=True)
     semester_data = semester_data.iloc[:, :-6]
 
     return semester_data
@@ -77,8 +76,8 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     rf_model = BalancedRandomForestClassifier(random_state=random.seed(1234), class_weight="balanced_subsample") # BalancedRandomForest() provides each tree with a balanced subsample
                                                                                                                  # where there are a balanced amount of majority and minority class observations
                                                                                                                  # class_weight="balanced_subsample" adjusts weights of the majority/minority classes
+    rf_model.fit(spring_2021_students_df, target_vector)
     # target_vector_columns = pd.Index(["0","1"])
-    # rf_model.fit(spring_2021_students_df, target_vector)
     # tree.plot_tree(rf_model.estimators_[0], feature_names=spring_2021_students_df.columns, class_names=target_vector_columns, filled=True)
     # plt.show()
 
@@ -137,9 +136,10 @@ def main():
     # pd.to_pickle(student_data, "July_22_Course_Dataset.pkl")
 
     student_data = pd.read_pickle("July_22_Course_Dataset.pkl")
+    student_data = pd.get_dummies(student_data,
+                                columns=['SGBSTDN_COLL_CODE_1', 'SGBSTDN_COLL_CODE_2', 'SGBSTDN_MAJR_CODE_1',
+                                         'SGBSTDN_MAJR_CODE_2'], dtype=int)
     create_rf_model_for_course(student_data, "BSBA", "2209")
-
-
 
 if __name__ == "__main__":
     main()

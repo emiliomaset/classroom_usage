@@ -106,7 +106,7 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     plt.xlabel('False Positive Rate')
     plt.show()
 
-    cm = confusion_matrix(target_vector, y_pred) # the confusion matrix of a classifcation model shows the amount of
+    cm = confusion_matrix(target_vector, y_pred) # the confusion matrix of a classification model shows the amount of
                                                  # true positives, false positives, true negatives, and false negatives
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
     cm_display.plot()
@@ -138,7 +138,6 @@ def main():
     # pd.to_pickle(student_data, "July_10.pkl")
 
     student_data = pd.read_pickle("July_10.pkl")
-
     create_rf_model_for_course(student_data, "BSBA", "2209")
 
 if __name__ == "__main__":
