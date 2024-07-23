@@ -58,7 +58,7 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     creating a random forest (rf) model using spring student data to predict whether a student is in a given course
     in a fall semester
 
-    :param all_student_data: df of all student data obtained from July 10 Dataset.xlsx
+    :param all_student_data: df of all student data obtained from student_data_without_majors_edited.xlsx
     :param course_subject: course subject of course we are predicting enrollment for
     :param course_number: course number of course we are predicting enrollment for
     :return: N/A
@@ -134,10 +134,10 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
     print(f"{int(sum(target_vector))} students from spring 2022 took the course in fall 2022. {tp} predictions were correct. there were {fp} false positives and {fn} false negatives.")
 
 def main():
-    # student_data = pd.read_excel("July 10 Dataset.xlsx")
-    # pd.to_pickle(student_data, "July_10.pkl")
+    # student_data = pd.read_excel("student_data_without_majors_edited.xlsx")
+    # pd.to_pickle(student_data, "student_data_without_majors_edited.pkl")
 
-    student_data = pd.read_pickle("July_10.pkl")
+    student_data = pd.read_pickle("student_data_without_majors_edited.pkl")
     create_rf_model_for_course(student_data, "BSBA", "2209")
 
 if __name__ == "__main__":

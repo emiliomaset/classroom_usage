@@ -9,8 +9,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, r2_score
 from sklearn.preprocessing import OrdinalEncoder
-numpy.set_printoptions(threshold=sys.maxsize) #print entire numpy arrays
-sns.set(font_scale=1.5) #set graph font size
+
+numpy.set_printoptions(threshold=sys.maxsize)  #print entire numpy arrays
+sns.set(font_scale=1.5)  #set graph font size
+
 
 # import warnings
 # warnings.filterwarnings("ignore")
@@ -20,8 +22,8 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
     """
     method to export section count, enrollment count, actual enrollment ratio, and predicted enrollment ratios using various techniques
 
-    :param classes_data: data obtained from Course Data Set 6-26.xlsx
-    :param old_classes_data: data obtained from Course Dataset for Summer Program June20.xlsx
+    :param classes_data: data obtained from dataset_one_row_per_course_edited.xlsx
+    :param old_classes_data: data obtained from one_row_per_registration_edited.xlsx
     :return:
     """
     sections_counts_by_class = classes_data.groupby(["CRS Subject", "CRS Course Number", "Academic Year",
@@ -47,7 +49,7 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
     sections_counts_by_class["Enrollment Ratio"] = number_enrolled_div_by_total_term_enrollment_ratio
 
     sections_counts_by_class_copy = sections_counts_by_class.copy()  # make copy to use when exporting to excel
-                                                                     # makes excel file easier to read
+    # makes excel file easier to read
 
     sections_counts_by_class.reset_index(inplace=True)  # reset index to use indices for filling array of predictions
 
@@ -58,7 +60,7 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
     prediction_list_using_1_year_and_average = np.zeros(shape=(13826, 1))
 
     for i, course in enumerate(sections_counts_by_class.groupby(["CRS Subject", "CRS Course Number", "Academic Term"])
-                               ["Enrollment Ratio"].unique().index): # create predictions using each technique
+                               ["Enrollment Ratio"].unique().index):  # create predictions using each technique
 
         predictions, indices_for_sheet = lin_reg_for_enrollment_ratio(course, sections_counts_by_class,
                                                                       "all")  # run a model for each course
@@ -97,6 +99,7 @@ def export_course_statistics_to_xlsx(classes_data, old_classes_data):
 
     sections_counts_by_class_copy.to_excel("Course Statistics With Averages.xlsx")
 
+
 def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are_looking):
     """
     create a linear regression model to obtain course enrollment predictions using various amounts of data
@@ -108,16 +111,16 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
     :return: the enrollment ratio prediction and the index of where it should go in the prediction array
     """
     course_we_are_running_model_on_df = all_class_data_df[(all_class_data_df["CRS Subject"] ==
-                                                                  model_course[
-                                                                      0]) &
-                                                                 (all_class_data_df["CRS Course Number"] ==
-                                                                  model_course[1]) &
-                                                                 ((all_class_data_df["Academic Term"] ==
-                                                                   model_course[2]))]
+                                                           model_course[
+                                                               0]) &
+                                                          (all_class_data_df["CRS Course Number"] ==
+                                                           model_course[1]) &
+                                                          ((all_class_data_df["Academic Term"] ==
+                                                            model_course[2]))]
 
     course_we_are_running_model_on_df.drop(columns=["CRS Section Number", "Number Enrolled"], inplace=True)
 
-    if len(course_we_are_running_model_on_df) < 4: # if there is less than 3 years of data, do not make a prediction-- just return -1
+    if len(course_we_are_running_model_on_df) < 4:  # if there is less than 3 years of data, do not make a prediction-- just return -1
         return [-1], [course_we_are_running_model_on_df.index[len(course_we_are_running_model_on_df) - 1]]
 
     year_and_ratio_df = course_we_are_running_model_on_df[
@@ -125,7 +128,8 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
 
     if model_course[2] == "Fall":
         date_objects = [datetime.date(int(x[:4]), 8, 1) for x in
-                        year_and_ratio_df["Academic Year"]]  # converting fall years into datetime objects in order to make regression
+                        year_and_ratio_df[
+                            "Academic Year"]]  # converting fall years into datetime objects in order to make regression
 
     else:
         date_objects = [datetime.date(int(x[:4]), 1, 1) for x in
@@ -148,8 +152,8 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
             X.drop(X.head(len(X) - 3).index, inplace=True)
             X["Years From Start"] = 0, 1, 2
 
-    model = LinearRegression(fit_intercept=True) # fit intercept true so that the y-intercept is not at (0,0).
-                                                 # i believe this makes the equation more accurate
+    model = LinearRegression(fit_intercept=True)  # fit intercept true so that the y-intercept is not at (0,0).
+    # i believe this makes the equation more accurate
     model.fit(X, y)
 
     print(r2_score(y_true=y, y_pred=model.predict(X)))
@@ -164,9 +168,10 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
     # print(model.predict( (X.iloc[-1]["Years From Start"] + 1).reshape(-1,1)))
     # print(model.coef_, model.intercept_)
 
-    graph_lin_reg(model, year_and_ratio_df, model_course, X)
+    graph_lin_reg(year_and_ratio_df, model_course)
 
-    return model.predict((X.iloc[-1]["Years From Start"] + 1).reshape(-1, 1)), [year_and_ratio_df.iloc[-1].name] # return prediction and index of where to put prediction in prediction array used for excel file
+    return model.predict((X.iloc[-1]["Years From Start"] + 1).reshape(-1, 1)), [year_and_ratio_df.iloc[
+                                                                                    -1].name]  # return prediction and index of where to put prediction in prediction array used for excel file
 
 
 def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are_looking):
@@ -178,16 +183,17 @@ def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
     :param how_far_we_are_looking: "all" for using all available data; "3" for using only the three preceding years; "1" for using only the preceding year
     :return: predicted ratio and index for prediction array
     """
-    course_we_are_averaging_df = all_class_data_df[(all_class_data_df["CRS Subject"] == model_course[ # get dataframe of course and term we are running model for
-        0]) &
-                                                          (all_class_data_df["CRS Course Number"] ==
-                                                           model_course[1]) &
-                                                          ((all_class_data_df["Academic Term"] ==
-                                                            model_course[2]))]
+    course_we_are_averaging_df = all_class_data_df[
+        (all_class_data_df["CRS Subject"] == model_course[  # get dataframe of course and term we are running model for
+            0]) &
+        (all_class_data_df["CRS Course Number"] ==
+         model_course[1]) &
+        ((all_class_data_df["Academic Term"] ==
+          model_course[2]))]
 
     course_we_are_averaging_df.drop(columns=["CRS Section Number", "Number Enrolled"], inplace=True)
 
-    if len(course_we_are_averaging_df) < 4: # if there's less than 4 years of data, do not make a prediction-- just return -1
+    if len(course_we_are_averaging_df) < 4:  # if there's less than 4 years of data, do not make a prediction-- just return -1
         return [-1], [course_we_are_averaging_df.index[len(course_we_are_averaging_df) - 1]]
 
     year_and_ratio_df = course_we_are_averaging_df[
@@ -195,7 +201,8 @@ def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
 
     index_to_return = year_and_ratio_df.iloc[-1].name
 
-    year_and_ratio_df.drop(year_and_ratio_df.tail(1).index, inplace=True) # remove last year's ratio for training purposes
+    year_and_ratio_df.drop(year_and_ratio_df.tail(1).index,
+                           inplace=True)  # remove last year's ratio for training purposes
 
     if how_far_we_are_looking == "1":
         return [year_and_ratio_df["Enrollment Ratio"].iloc[-1]], [index_to_return]
@@ -209,8 +216,6 @@ def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
 
 def graph_lin_reg(year_and_ratio_df, model_course):
     """
-
-
     :param year_and_ratio_df:
     :param model_course:
     :return:
@@ -222,7 +227,8 @@ def graph_lin_reg(year_and_ratio_df, model_course):
     year_and_ratio_df = year_and_ratio_df.drop(['Years From Start'], axis=1)  # remove Years From Start column to graph
 
     plt.figure(figsize=(16, 6))
-    graph = sns.regplot(x=year_and_ratio_df["Academic Year"], y=year_and_ratio_df["Enrollment Ratio"],
+
+    graph = sns.regplot(x=year_and_ratio_df["Academic Year"].values, y=year_and_ratio_df["Enrollment Ratio"].values,
                         data=year_and_ratio_df)
 
     graph.axes.set_title(f"{model_course[0]} {model_course[1]} {model_course[2]} Enrollment Ratios", fontsize=30)
@@ -234,26 +240,16 @@ def graph_lin_reg(year_and_ratio_df, model_course):
     plt.gcf().subplots_adjust(bottom=0.13)
 
     plt.show()
+
+
 def main():
-    # classes_data = pd.read_excel("Course Data Set 6-26.xlsx")
-    # classes_data.to_pickle("Course Data Set 6-26.pickle", compression="xz")
-    #classes_data = pd.read_pickle("Course Data Set 6-26.pickle", compression="xz")
+    classes_data = pd.read_pickle("dataset_one_row_per_course_edited.pickle",
+                                  compression="xz")  #this orignal data set has been lost since Dr. Howard accidentaly overwrote it. shouldn't be a problem, though
+    classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
 
-    # old_classes_data = pd.read_excel("Course Dataset for Summer Program June20.xlsx")
-    # old_classes_data.to_pickle("class_data.pickle", compression="xz")
-    #old_classes_data = pd.read_pickle("class_data.pickle", compression="xz")
+    old_classes_data = pd.read_pickle("one_row_per_registration_edited.pickle", compression="xz")
 
-    #classes_data = classes_data[classes_data["Academic Year"] != "2024-2025"]
-    #export_course_statistics_to_xlsx(classes_data, old_classes_data)
-
-    all_student_data = pd.read_pickle("class_data.pickle", compression="xz")
-
-    # create_rf_model_for_course(all_student_data, "ENGL", "1101")
-    # create_rf_model_for_course(all_student_data, "MATH", "2501") # calc 1
-    # create_rf_model_for_course(all_student_data, "MATH", "3520") # linear
-    # create_rf_model_for_course(all_student_data, "MATH", "2563") # transitions
-    # create_rf_model_for_course(all_student_data, "COMP", "2270") # data structures
-    # create_rf_model_for_course(all_student_data, "BSBA", "2209")
+    export_course_statistics_to_xlsx(classes_data, old_classes_data)
 
 
 if __name__ == "__main__":
