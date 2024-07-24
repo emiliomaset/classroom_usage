@@ -46,7 +46,7 @@ def create_features_matrix_for_rf_model(semester_data):
     :return: student info feature matrix
     """
     semester_data.drop(columns=semester_data.iloc[:, :3], inplace=True)
-    semester_data = semester_data.iloc[:, :-6]
+    semester_data = semester_data.iloc[:, :-1]
 
     return semester_data
 
@@ -77,6 +77,9 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
                                                                                                                  # where there are a balanced amount of majority and minority class observations
                                                                                                                  # class_weight="balanced_subsample" adjusts weights of the majority/minority classes
     rf_model.fit(spring_2021_students_df, target_vector)
+    test = dict(zip(spring_2021_students_df.columns, rf_model.feature_importances_))
+    test = sorted(test.items(), key=lambda x: x[1], reverse=True)
+    print(test)
     # target_vector_columns = pd.Index(["0","1"])
     # tree.plot_tree(rf_model.estimators_[0], feature_names=spring_2021_students_df.columns, class_names=target_vector_columns, filled=True)
     # plt.show()
@@ -92,17 +95,17 @@ def create_rf_model_for_course(all_student_data, course_subject, course_number):
 
     y_pred = rf_model.predict(spring_2022_students_df)
 
-    fpr, tpr, threshold = metrics.roc_curve(y_pred, target_vector) # the ROC curve indicates performance of the model at various probabalistic thresholds
-    roc_auc = metrics.auc(fpr, tpr)
-    plt.title('ROC Curve')
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
-    plt.show()
+    # fpr, tpr, threshold = metrics.roc_curve(y_pred, target_vector) # the ROC curve indicates performance of the model at various probabalistic thresholds
+    # roc_auc = metrics.auc(fpr, tpr)
+    # plt.title('ROC Curve')
+    # plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
+    # plt.legend(loc='lower right')
+    # plt.plot([0, 1], [0, 1], 'r--')
+    # plt.xlim([0, 1])
+    # plt.ylim([0, 1])
+    # plt.ylabel('True Positive Rate')
+    # plt.xlabel('False Positive Rate')
+    # plt.show()
 
     cm = confusion_matrix(target_vector, y_pred) # the confusion matrix of a classification model shows the amount of
                                                  # true positives, false positives, true negatives, and false negatives
@@ -138,9 +141,9 @@ def main():
     # pd.to_pickle(student_data, "student_data_with_majors_edited.pkl")
 
     student_data = pd.read_pickle("student_data_with_majors_edited.pkl")
-    student_data = pd.get_dummies(student_data, # do one-hot encoding on the following columns
-                                columns=['SGBSTDN_COLL_CODE_1', 'SGBSTDN_COLL_CODE_2', 'SGBSTDN_MAJR_CODE_1',
-                                         'SGBSTDN_MAJR_CODE_2'], dtype=int)
+    student_data = pd.get_dummies(student_data,  # do one-hot encoding on the following columns
+                                  columns=['SGBSTDN_COLL_CODE_1', 'SGBSTDN_COLL_CODE_2', 'SGBSTDN_MAJR_CODE_1',
+                                           'SGBSTDN_MAJR_CODE_2'], dtype=int)
     create_rf_model_for_course(student_data, "BSBA", "2209")
 
 if __name__ == "__main__":

@@ -1,22 +1,15 @@
 import datetime
 import sys
 import numpy
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, r2_score
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.metrics import r2_score
 
-numpy.set_printoptions(threshold=sys.maxsize)  #print entire numpy arrays
-sns.set(font_scale=1.5)  #set graph font size
-
-
-# import warnings
-# warnings.filterwarnings("ignore")
-# pd.options.mode.chained_assignment = None
+numpy.set_printoptions(threshold=sys.maxsize) # print entire numpy arrays
+sns.set(font_scale=1.5) # set graph font size
 
 def export_course_statistics_to_xlsx(classes_data, old_classes_data):
     """
@@ -156,24 +149,12 @@ def lin_reg_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
     # i believe this makes the equation more accurate
     model.fit(X, y)
 
-    print(r2_score(y_true=y, y_pred=model.predict(X)))
-
-    # display = PredictionErrorDisplay(y_true=y, y_pred=model.predict(X))
-    # display.plot()
-    # plt.show()
-
-    # print(course_we_are_running_model_on_df)
-    # print(X)
-    # print(y)
-    # print(model.predict( (X.iloc[-1]["Years From Start"] + 1).reshape(-1,1)))
-    # print(model.coef_, model.intercept_)
+    #print(r2_score(y_true=y, y_pred=model.predict(X)))
 
     graph_lin_reg(year_and_ratio_df, model_course)
 
     return model.predict((X.iloc[-1]["Years From Start"] + 1).reshape(-1, 1)), [year_and_ratio_df.iloc[
                                                                                     -1].name]  # return prediction and index of where to put prediction in prediction array used for excel file
-
-
 def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are_looking):
     """
     other technique for predicting enrollment ratios.
@@ -213,7 +194,6 @@ def average_for_enrollment_ratio(model_course, all_class_data_df, how_far_we_are
 
     return [year_and_ratio_df['Enrollment Ratio'].sum() / len(year_and_ratio_df["Enrollment Ratio"])], [index_to_return]
 
-
 def graph_lin_reg(year_and_ratio_df, model_course):
     """
     :param year_and_ratio_df:
@@ -241,7 +221,6 @@ def graph_lin_reg(year_and_ratio_df, model_course):
 
     plt.show()
 
-
 def main():
     classes_data = pd.read_pickle("dataset_one_row_per_course_edited.pickle",
                                   compression="xz")  #this orignal data set has been lost since Dr. Howard accidentaly overwrote it. shouldn't be a problem, though
@@ -250,7 +229,6 @@ def main():
     old_classes_data = pd.read_pickle("one_row_per_registration_edited.pickle", compression="xz")
 
     export_course_statistics_to_xlsx(classes_data, old_classes_data)
-
 
 if __name__ == "__main__":
     main()
